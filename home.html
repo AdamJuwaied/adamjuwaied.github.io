@@ -13,7 +13,7 @@
 <body>
 
     <header>
-        <a href="home.html" class="logo, lax"> <img src = "images/AJNameLogo.png" alt="logo" style="width: 3rem; height:auto; max-width: 300px;"></a>
+        <a href="home.html" class="logo"> .AJ </a>
 
         <nav class="navbar">
             <a href="#" class="toggle-btn">
@@ -32,20 +32,12 @@
         </nav>
     </header>
 
-    <div style="background-color: #000">   
-        <img src="images/EarthLogo.jpg"  class="photo1"]>
+    <div class="photo1" data-tilt-max="2" data-tilt data-tilt-full-page-listening>   
+        <img src="images/EarthPhoto.jpg" alt="Earth" style="width: 100%; height: auto;">
     </div>
 
 
+
     <script type="text/javascript" src="./vanilla-tilt.js"></script>
-    <script type="text/javascript">
-        VanillaTilt.init(document.querySelector(".photo1"), {
-            max: 3,
-            speed: 400
-        });
-        
-        //It also supports NodeList
-        VanillaTilt.init(document.querySelectorAll(".photo1"));
-    </script>
     </body>
 </html>
