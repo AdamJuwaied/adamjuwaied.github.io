@@ -1,0 +1,101 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:400,500,600,700,800,900&display=swap');
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+
+}
+
+.body{
+    background-color: #000;
+    overflow-x: hidden;
+}
+
+.photo1{   
+    height: auto;
+    width: 97.25vw;
+    overflow-x: hidden;
+    background-size: cover;
+    background-image: url(images/EarthPhoto.jpg);
+    background-repeat: no-repeat;
+}
+
+header{
+    background-color: rgba(0,0,0,0.0);
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0px 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 1;
+}
+
+.navbar{
+    background-color: transparent !important;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-attachment: fixed;
+}
+
+header ul{
+    background-color: rgba(0,0,0, 0.028);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+}
+
+header ul li{
+    list-style-type: none;
+    margin: 10px;
+    font-size: 0px 10px;
+    display: inline-block;
+}
+
+header ul li a{
+    color: aliceblue;
+    text-decoration: none;
+    padding: 6px 15px;
+    border-radius: 15px;
+    
+}
+
+
+@media (max-width: 768px){
+    .body{
+        overflow-x: scroll;
+    }
+}
+
+
+
+/* .cardHeader__logoText_light {
+    font-weight: 300;
+    -webkit-transition: color 1s ease;
+    -o-transition: color 1s ease;
+    transition: color 1s ease;
+}
+
+* {
+    cursor: none;
+}
+*, ::after, ::before {
+    -webkit-box-sizing: inherit;
+    box-sizing: inherit;
+}
+*, ::after, ::before {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+}
+.cardHeader__logo {
+    font-size: 26px;
+    color: #fff;
+    font-weight: 700;
+    padding: 10px;
+} */
