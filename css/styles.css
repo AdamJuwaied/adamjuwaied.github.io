@@ -135,68 +135,6 @@ section{
     }
 }
 
- /* 
-.photo1{
-    background-image: url('images/EarthPhoto.jpg');
-    height: 100vh; 
-    width: 100%;
-    background-attachment: fixed;
-    z-index: -1;
-    position: relative;
-    overflow-x: hidden;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: 50% 0;
-}
-
-.moon{
-    height: 30%;
-    position: absolute;
-    margin: 0 auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    z-index: 1;
-    transform-style: preserve-3d;
-    transform: perspective(1000px);
-    transform: translateZ(20px);
-}
-
-.parallax-container{
-    background-color: #000;
-    height: 100vh;
-    width: 100%;
-    position: relative;
-    z-index: -1;
-} */
-
-/* .photo1{   
-    background-image: url(images/EarthPhoto.jpg);
-    height: 100vh; 
-    width: 100%;
-    background-attachment: fixed;
-    background-position: center;
-    z-index: 1;
-    position: relative;
-    overflow-x: hidden;
-    background-size: cover;
-    background-repeat: no-repeat;
-    background-position: 50% 0;
-}
-
-.moon{
-    height: 30%;
-    position: absolute;
-    margin: 0 auto;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: auto;
-    z-index: 15;
-
-} */
-
 .intro{
     position: fixed;
     z-index: 0;
