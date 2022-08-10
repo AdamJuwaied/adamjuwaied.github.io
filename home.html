@@ -5,39 +5,71 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/styles.css">
-    <title>Document</title>
+    <title>Adam's Website</title>
 </head>
 
 
 
 <body>
 
-    <header>
-        <a href="home.html" class="logo"> .AJ </a>
+    <section>
+        <header>
+            <a href="home.html" class="logo"> .AJ </a>
 
-        <nav class="navbar">
-            <a href="#" class="toggle-btn">
-                <span class="bar"></span>
-                <span class="bar"></span>
-                <span class="bar"></span>
-            </a>
-            <div class="navbar-links">
-                <ul>
-                    <li><a href="home.html">Home</a></li>
-                    <li><a href="about.html">About</a></li>
-                    <li><a href="contact.html">Contact</a></li>
-                    <li><a href="login.html">Login</a></li>
-                </ul>
+            <nav class="navbar">
+                <a href="#" class="toggle-btn">
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                    <span class="bar"></span>
+                </a>
+                <div class="navbar-links">
+                    <ul>
+                        <li><a href="home.html" class="active">Home</a></li>
+                        <li><a href="work.html">Work</a></li>
+                        <li><a href="projects.html">Projects</a></li>
+                        <li><a href="about.html">About</a></li>
+                        <li><a href="contact.html">Contact</a></li>
+                        
+                    </ul>
+                </div>
+            </nav>
+        </header>
+        <img  src="images/moon.png" class="moon"  data-tilt data-tilt-max="17" data-tilt-reverse="true" data-tilt-full-page-listening/>
+
+        <div class="parallax" data-tilt-max="3" data-tilt data-tilt-full-page-listening style="transform: translate(-50%, -50%);">   
+            <img class="parallax" data-tilt-full-page-listening src="images/36022366223_4583ecb311_o.png"/>
+            <div>
+                <a href="contact.html" class="chat-btn" id="chat-button"> Let's Talk! </a>
             </div>
-        </nav>
-    </header>
+        </div>
+    </section>
 
-    <div class="photo1" data-tilt-max="2" data-tilt data-tilt-full-page-listening>   
-        <img src="images/EarthPhoto.jpg" alt="Earth" style="width: 100%; height: auto;">
+    <div class="sec">
+        <h2> Learn about me! </h2>
+        <p>
+            A little background about myself, I was born and raised in Yonkers, New York. My parents come from a Middle Eastern
+            country called Jordan and I've been there before and definetly plan on going there again soon. There is actually a 
+            world wonder in Jordan called Petra, and it has a lot of historical information you can explore here. I do have a 
+            lot of family in the states but I do a lot more family in Jordan. Thank you for reading my small bio!
+            I am a web developer with a passion for creating beautiful and functional websites. I have a background in 
+            computer science and a passion for creating websites that are user-friendly and aesthetically pleasing.
+        </p> <br><br>
+      
     </div>
 
 
 
+
+
     <script type="text/javascript" src="./vanilla-tilt.js"></script>
+    <script>
+        window.addEventListener('scroll', function(e) {
+            const target = document.querySelector('.scroll');
+            var scrolled = window.pageYOffset;
+            var rate = scrolled * .5;
+
+            target.style.transform = 'translate3d(0px, '+ rate + 'px, 0px)';
+        });
+    </script>
     </body>
 </html>

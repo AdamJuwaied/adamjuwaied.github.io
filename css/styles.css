@@ -5,28 +5,210 @@
     padding: 0;
     box-sizing: border-box;
     font-family: 'Roboto Mono', monospace;
-    background-color: #000;
+    /* background-color: #000; */
+    
 
 }
 
-.body{
-    background-color: #000;
+body{
+    /* background-color: #000; */
     overflow-x: hidden;
+    
 }
 
-.photo1{   
-    height: auto;
-    width: 97.25vw;
+ /* create a parallax scroll for photo1 and moon image so that the moon image is above the photo1 image  */
+
+.moon {
+    height: 20%;
+    position: absolute;
+    border: 44px;
+    top: 25%;
+    left: 80%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    z-index: 10;
+    transform-style: preserve-3d;
+    transform: perspective(1000px);
+    transform: translateZ(20px);     
+  }
+/*  style="width: 10%; height: auto; background-color: transparent; top: 5rem; 
+transform-style: preserve-3d; transform: perspective(1000px); transform: translateZ(20px); 
+transform: translate(-50%, -50%);" */
+
+.parallax {
+    max-width: 2037px; 
+    width: 95vw; 
+    max-height: 859px; 
+    height: 98vh; 
+    background-size: cover; 
+    background-repeat: no-repeat;
+    /* Create the parallax scrolling effect */
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    z-index: 1;
+    position: relative;
+}
+
+.parallax img{
+
+    background: linear-gradient(to top rgba(0,0,0,1), transparent);
+
+}
+
+.parallax::before{
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10;
+
+}
+
+
+.parallax .chat-btn{
+    position: absolute;
+    bottom:30%;
+    left: 50%;
+    transform-style: preserve-3d;
+    transform: translate3d(-50%,0,75px);
+    border: 4px solid rgb(183, 183, 183);
+    text-decoration: none;
+    display:inline-block;
+    padding:8px 30px;
+    border-radius:50px;
+    background-color: black;
+    color: rgb(183, 183, 183);
+    font-size: 2em;
+    z-index: 10 !important;
+}
+
+#chat-button:hover{
+    background-color: rgb(183, 183, 183);
+    color: black;
+    transition: 1s;
+}
+
+section{
+    background-image: url('https://cdn.discordapp.com/attachments/446823972051353611/1006702754359676978/7996065278_65edb04cc7_o.jpg');
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+
+}
+
+.sec{
+    position: relative;
+    padding: 100px;
+    background: black;
+    color: rgb(183, 183, 183);
+
+}
+
+.sec h2{
+    font-size: 3em;
+    text-align: center;
+    margin-bottom: 15px;
+    color: rgb(183, 183, 183);
+}
+
+@media (max-width: 450px) {
+    .sec h2{
+        font-size: 3px;
+    }
+
+    .parallax {
+        top: calc(100vh / 600px);
+        bottom: 10px;
+        max-height: 20vh;
+        width: 100vw;
+        top: 50%;
+        height: 50vh;
+    }
+    .parallax .chat-btn{
+        font-size: 12px;
+        transform: translate3d(-50%,0,10px);
+    }
+}
+
+ /* 
+.photo1{
+    background-image: url('images/EarthPhoto.jpg');
+    height: 100vh; 
+    width: 100%;
+    background-attachment: fixed;
+    z-index: -1;
+    position: relative;
     overflow-x: hidden;
     background-size: cover;
     background-repeat: no-repeat;
+    background-position: 50% 0;
+}
+
+.moon{
+    height: 30%;
+    position: absolute;
+    margin: 0 auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    z-index: 1;
     transform-style: preserve-3d;
     transform: perspective(1000px);
     transform: translateZ(20px);
 }
 
+.parallax-container{
+    background-color: #000;
+    height: 100vh;
+    width: 100%;
+    position: relative;
+    z-index: -1;
+} */
+
+/* .photo1{   
+    background-image: url(images/EarthPhoto.jpg);
+    height: 100vh; 
+    width: 100%;
+    background-attachment: fixed;
+    background-position: center;
+    z-index: 1;
+    position: relative;
+    overflow-x: hidden;
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: 50% 0;
+}
+
+.moon{
+    height: 30%;
+    position: absolute;
+    margin: 0 auto;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: auto;
+    z-index: 15;
+
+} */
+
+.intro{
+    position: fixed;
+    z-index: 0;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    transition: 2s;
+
+}
+
 header{
-    /* background-color: rgba(0,0,0,0.0); */
     position: relative;
     top: 0;
     left: 0;
@@ -35,8 +217,7 @@ header{
     display: flex;
     justify-content: space-between;
     align-items: center;
-    z-index: 1;
-    overflow-x: hidden;
+    z-index: 0;
 }
 
 .navbar{
@@ -75,7 +256,10 @@ header ul li a{
 
 header ul li a:hover,
 header ul li a:active{
-    color: rgb(183, 183, 183);
+    color: rgb(0, 0, 0);
+    background-color: rgb(183, 183, 183);
+    z-index: 100;
+    transition: .75s;
 }
 
 .logo{
@@ -90,22 +274,46 @@ header ul li a:active{
 
 }
 
-
-@media (max-width: 768px){
-    .body{
-        overflow-x: scroll;
-    }
+.toggle-btn{
+    position: absolute ;
+    top: 2rem;
+    right: 5rem;
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 23px;
+    height: 18px;
 }
 
+.toggle-btn .bar{
+    width: 100%;
+    height: 3px;
+    background-color: rgb(183, 183, 183);
+    border-radius: 10px;
+}
 
-
-/* .cardHeader__logoText_light {
+.contact-btn {
     font-weight: 300;
     -webkit-transition: color 1s ease;
     -o-transition: color 1s ease;
     transition: color 1s ease;
 }
 
+
+@media (max-width: 640px){
+    .toggle-btn{
+        display: flex;
+    }
+
+    .navbar-links{
+        display: none;
+    }
+}
+
+
+
+
+/*
 * {
     cursor: none;
 }
