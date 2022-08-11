@@ -13,12 +13,12 @@
         let app = new PIXI.Application({width: window.innerWidth, height: window.innerHeight});
         document.body.appendChild(app.view);
 
-        let img = new PIXI.Sprite.from('images/moonalone.png');
+        let img = new PIXI.Sprite.from("images/petra.jpg");
         img.width = window.innerWidth;
         img.height = window.innerHeight;
         app.stage.addChild(img);
 
-        depthMap = new PIXI.Sprite.from('images/moon-map1.png');
+        depthMap = new PIXI.Sprite.from("petra-map.png");
         app.stage.addChild(depthMap);
                 
         displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
@@ -29,6 +29,8 @@
         displacementFilter.scale.y = (window.innerHeight / 2 - e.clientY) /20;
         };
     </script>
+
+
 <!-- 
 
 for stars background settings, perfect tweeks
