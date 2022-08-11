@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    
+    <script src="https://pixijs.download/release/pixi.js"></script>
+    <script>
+        let app = new PIXI.Application({width: window.innerWidth, height: window.innerHeight});
+        document.body.appendChild(app.view);
+
+        let img = new PIXI.Sprite.from('images/moonalone.png');
+        img.width = window.innerWidth;
+        img.height = window.innerHeight;
+        app.stage.addChild(img);
+
+        depthMap = new PIXI.Sprite.from('images/moon-map1.png');
+        app.stage.addChild(depthMap);
+                
+        displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
+        app.stage.filters = [displacementFilter];
+
+        window.onmousemove = function(e) {
+        displacementFilter.scale.x = (window.innerWidth / 2 - e.clientX) /20;
+        displacementFilter.scale.y = (window.innerHeight / 2 - e.clientY) /20;
+        };
+    </script>
+<!-- 
+
+for stars background settings, perfect tweeks
+
+const starAmount = 5500;
+let cameraZ = 0;
+const fov = 1;
+const baseSpeed = 0.005;
+let speed = 0;
+const starStretch = .02;
+const starBaseSize = 0.015;
+
+
+// Create the stars
+const stars = [];
+for (let i = 0; i < starAmount; i++) {
+    const star = {
+        sprite: new PIXI.Sprite(starTexture),
+        z: 0,
+        x: 0,
+        y: 0,
+    };
+    star.sprite.anchor.x = 15;
+    star.sprite.anchor.y = -395;
+    star.sprite.anchor.z = 15;
+    randomizeStar(star, true);
+    app.stage.addChild(star.sprite);
+    stars.push(star);
+} -->
+
+</body>
+</html>

@@ -101,6 +101,21 @@ section{
 
 }
 
+.parallax h2{
+    position: absolute;
+    top: 30%;
+    left: 37%;
+    transform: translate(-50%, -50%);
+    color: rgb(183, 183, 183);
+    font-size: 3em;
+    font-weight: bold;
+    text-align: center;
+    z-index: 10;
+    transform-style: preserve-3d;
+    transform: perspective(1000px);
+    transform: translateZ(20px); 
+}
+
 .sec{
     position: relative;
     padding: 100px;
@@ -111,7 +126,7 @@ section{
 
 .sec h2{
     font-size: 3em;
-    text-align: center;
+    left: 200px;
     margin-bottom: 15px;
     color: rgb(183, 183, 183);
 }
