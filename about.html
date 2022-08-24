@@ -4,32 +4,83 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/about.css">
     <title>Document</title>
 </head>
 <body>
+    <section>
+
+        <!-- Put pixi class into card class to appear within the circle -->
+        <div class="card">
+            <div class="pixi">
+                <script src="js/pixi.js"></script>
+
+                <script src="https://pixijs.download/release/pixi.js"></script>
+                <!-- <script>
+                    let app = new PIXI.Application({width: window.innerWidth / 4, height: window.innerHeight});
+                    //  center the image on the screen
+                    app.renderer.view.style.position = "absolute";
+                    // center the view of the image
+                    app.renderer.view.style.display = "flex";
+                    app.renderer.view.style.margin = "auto";
+                    app.renderer.view.style.top = "0";
+                    app.renderer.view.style.left = "0";
+                    app.renderer.view.style.right = "0";
+                    app.renderer.view.style.bottom = "0";
+
+
+
+                    document.body.appendChild(app.view);
     
-    <script src="https://pixijs.download/release/pixi.js"></script>
-    <script>
-        let app = new PIXI.Application({width: window.innerWidth, height: window.innerHeight});
-        document.body.appendChild(app.view);
+                    let img = new PIXI.Sprite.from("images/Adam-Picture.png");
+                    img.width = window.innerWidth;
+                    img.height = window.innerHeight;
+                    app.stage.addChild(img);
+    
+                    depthMap = new PIXI.Sprite.from("Adam-Map.png");
+                    app.stage.addChild(depthMap);
+                            
+                    displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
+                    app.stage.filters = [displacementFilter];
+    
+                    window.onmousemove = function(e) {
+                    displacementFilter.scale.x = (window.innerWidth / 2 - e.clientX) /15;
+                    displacementFilter.scale.y = (window.innerHeight / 2 - e.clientY) /15;
+                    };
+                </script> -->
+            </div>
+            <div class="card-content">
+                <h1>Adam Juwaied</h1>
+                <p>
+                    I am a web developer with a passion for creating beautiful, aesthetically pleasing and functional websites, programs, and projects.
+                </p>
+            </div>
 
-        let img = new PIXI.Sprite.from("images/petra.jpg");
-        img.width = window.innerWidth;
-        img.height = window.innerHeight;
-        app.stage.addChild(img);
+        <!-- <div class="card">
+            <script src="js/pixi.js"></script>
 
-        depthMap = new PIXI.Sprite.from("petra-map.png");
-        app.stage.addChild(depthMap);
-                
-        displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
-        app.stage.filters = [displacementFilter];
+            <script src="https://pixijs.download/release/pixi.js"></script>
+            <script>
+                let app = new PIXI.Application({width: window.innerWidth, height: window.innerHeight});
+                document.body.appendChild(app.view);
 
-        window.onmousemove = function(e) {
-        displacementFilter.scale.x = (window.innerWidth / 2 - e.clientX) /20;
-        displacementFilter.scale.y = (window.innerHeight / 2 - e.clientY) /20;
-        };
-    </script>
+                let img = new PIXI.Sprite.from("images/Adam-Picture.png");
+                img.width = window.innerWidth;
+                img.height = window.innerHeight;
+                app.stage.addChild(img);
 
+                depthMap = new PIXI.Sprite.from("Adam-Map.png");
+                app.stage.addChild(depthMap);
+                        
+                displacementFilter = new PIXI.filters.DisplacementFilter(depthMap);
+                app.stage.filters = [displacementFilter];
+
+                window.onmousemove = function(e) {
+                displacementFilter.scale.x = (window.innerWidth / 2 - e.clientX) /15;
+                displacementFilter.scale.y = (window.innerHeight / 2 - e.clientY) /15;
+                };
+            </script>
+        </section> -->
 
 <!-- 
 
