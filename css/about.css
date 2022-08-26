@@ -1,85 +1,152 @@
 @property --rotate {
-    syntax: "<angle>";
-    initial-value: 132deg;
-    inherits: false;
-  }
+  syntax: "<angle>";
+  initial-value: 132deg;
+  inherits: false;
+}
   
-  :root {
-    --card-height: 65vh;
-    --card-width: 50vw;
+:root {
+  --card-height: 65vh;
+  --card-width: calc(var(--card-height) / 1.5);
 
+}
+
+body {
+  background: #1e1e1e;
+  align-items: center;
+  flex-direction: column;
+  padding-bottom: 2rem;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #191c29;
+  max-width: 300px;
+  max-height: 300px;
+  padding: 3px;
+  position: absolute;
+  border-radius: 300px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  font-size: 1.5em;
+  color: rgb(88 199 250 / 0%);
+  font-family: cursive;
+  top: 195px;
+  left: 45px;
+}
+
+.card img{
+  position: relative;
+  top: 3px;
+  width: 100%;
+  height: 100%;
+  border-radius: 300px;
+  align-items: center;
+}
+  
+.card::before {
+  content: "";
+  height: calc(100%);
+  width: calc(100%);
+  border-radius: 300px;
+  background-image: linear-gradient(var(--rotate), #5ddcff, #3c67e3 43%, #4e00c2);
+  padding: 4px;
+  position: relative;
+  border-radius: 300px;
+  align-items: center;
+  position: absolute;
+  z-index: -1;
+  top: -1.25%;
+  left: -1.25%;
+  animation: spin 2.5s linear infinite;
+}
+  
+@keyframes spin {
+  0% {
+    --rotate: 0deg;
   }
-  
-  
-  body {
-    background: #212534;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    box-sizing: border-box;
+  100% {
+    --rotate: 360deg;
   }
+}
   
-  
+a {
+  color: rgb(183, 183, 183);
+  text-decoration: none;
+  font-family: sans-serif;
+  font-weight: bold;
+  /* margin-top: 2rem; */
+}
+
+h2{
+  font-size: 2.15rem;
+  top: 100px;
+  left: 75px;
+  margin-bottom: 0px;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace; 
+  position: absolute;
+}
+
+h3{
+  position: absolute;
+  left: 60px;
+  top: 535px;
+  font-size: 2rem;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+}
+
+.svgload{
+  position: absolute;
+  width: 0px;
+  height: 0px;
+
+}
+
+@media screen and (min-width: 1080px) {
   .card {
-    background: #191c29;
-    max-width: 300px;
-    max-height: 300px;
-    padding: 3px;
-    position: relative;
-    border-radius: 300px;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    display: flex;
-    font-size: 1.5em;
-    color: rgb(88 199 250 / 0%);
-    font-family: cursive;
-  }
-  
-  
-  
-  
-  
-  .card::before {
-    content: "";
-
-    width: 310px;
-    height: 306px;
-    border-radius: 300px;
-    background-image: linear-gradient(
-      var(--rotate)
-      , #5ddcff, #3c67e3 43%, #4e00c2);
-    padding: 4px;
-    position: relative;
-    border-radius: 300px;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    display: flex;
+    z-index: 10;
+    top: 115px;
+    left: -5%;
     position: absolute;
-    z-index: -1;
-    top: -1%;
-    left: -2%;
-    animation: spin 2.5s linear infinite;
+
   }
-  
-  
-  
-  @keyframes spin {
-    0% {
-      --rotate: 0deg;
-    }
-    100% {
-      --rotate: 360deg;
-    }
+
+  .card::before {
+    left: -5px;
+    top: -6px;
+    height: 67vh;
+    width: 67vh;
   }
-  
-  a {
-    color: #212534;
-    text-decoration: none;
-    font-family: sans-serif;
-    font-weight: bold;
-    margin-top: 2rem;
+
+  .card img {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    height: 65vh;
+    width: 65vh;
+    border: 5px solid #191c29;
+
   }
+
+  h2{
+    font-size: 3rem;
+    position: absolute;
+    left: 900px;
+    top: 100px;
+
+  }
+  h3{
+    position: absolute;
+    top:200px;
+    left: 950px;
+  }
+
+  .svgload{
+    position: absolute;
+    width: 100vw;
+    height: 0px;
+  }
+
+}

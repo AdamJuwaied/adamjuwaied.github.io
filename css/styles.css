@@ -6,12 +6,12 @@
     box-sizing: border-box;
     /* font-family: 'Roboto Mono', monospace; */
     /* background-color: #000; */
-    
+
 
 }
 
 body{
-    background-color: #212534;
+    background-color: #1e1e1e;
     overflow-x: hidden;
     
 }
@@ -208,8 +208,8 @@ header ul{
     
 }
 
-header ul li{
-    list-style-type: none;
+header ul li {
+    list-style-type: none ;
     margin: 10px;
     font-size: 0px 10px;
     display: inline-block;
@@ -223,7 +223,7 @@ header ul li a{
     font-style: normal;
     font-weight: bold;
     font-size: 19px;
-    
+    font-family: 'Roboto Mono', monospace;    
 }
 
 header ul li a:hover,
