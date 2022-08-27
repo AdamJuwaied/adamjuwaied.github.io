@@ -194,8 +194,8 @@ for (let i = 0; i < starAmount; i++) {
     var draw = length * scrollpercent;
 
     // Reverse the drawing (when scrolling upwards)
-    triangle.style.strokeDashoffset = length - draw;
-    triangle2.style.strokeDashoffset = length2 - draw;
+    triangle.style.strokeDashoffset = 1 + length - draw;
+    triangle2.style.strokeDashoffset = 1 + length2 - draw;
     }
 </script>
 <script src="scripts.js"> </script>

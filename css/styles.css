@@ -273,7 +273,6 @@ section header nav div ul li a:active{
     transition: color 1s ease;
 }
 
-
 @media (max-width: 640px){
     .toggle-btn{
         display: flex;
@@ -283,25 +282,3 @@ section header nav div ul li a:active{
         display: none;
     }
 }
-
-
-
-
-/*
-* {
-    cursor: none;
-}
-*, ::after, ::before {
-    -webkit-box-sizing: inherit;
-    box-sizing: inherit;
-}
-*, ::after, ::before {
-    -webkit-box-sizing: border-box;
-    box-sizing: border-box;
-}
-.cardHeader__logo {
-    font-size: 26px;
-    color: #fff;
-    font-weight: 700;
-    padding: 10px;
-} */
