@@ -7,11 +7,12 @@
 :root {
   --card-height: 65vh;
   --card-width: calc(var(--card-height) / 1.5);
+  --black: #1e1e1e
 
 }
 
 body {
-  background: #1e1e1e;
+  background: var(--black);
   align-items: center;
   flex-direction: column;
   padding-bottom: 2rem;
@@ -19,7 +20,7 @@ body {
 }
 
 .card {
-  background: #191c29;
+  background: var(--black);
   max-width: 300px;
   max-height: 300px;
   padding: 3px;
@@ -33,6 +34,8 @@ body {
   font-family: cursive;
   top: 195px;
   left: 45px;
+  z-index: 2;
+
 }
 
 .card img{
@@ -42,6 +45,8 @@ body {
   height: 100%;
   border-radius: 300px;
   align-items: center;
+  z-index: 2;
+
 }
   
 .card::before {
@@ -55,7 +60,7 @@ body {
   border-radius: 300px;
   align-items: center;
   position: absolute;
-  z-index: -1;
+  z-index: 2;
   top: -1.25%;
   left: -1.25%;
   animation: spin 2.5s linear infinite;
@@ -86,6 +91,7 @@ h2{
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace; 
   position: absolute;
+  z-index: 2;
 }
 
 h3{
@@ -95,13 +101,32 @@ h3{
   font-size: 2rem;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace;
+  z-index: 2;
 }
 
 .svgload{
   position: absolute;
   width: 0px;
   height: 0px;
+  top: 100px;
+}
 
+.load2{
+  position: absolute;
+  width: 20vw;
+  height: 70%;
+  top: 100px;
+}
+
+.gapbox{
+  position: absolute;
+  width: 50%;
+  height: 35%;
+  top: 400px;
+  left: 25vw;
+  z-index: 1;
+  color: --black;
+  background-color: var(--black);
 }
 
 @media screen and (min-width: 1080px) {
@@ -111,6 +136,10 @@ h3{
     left: -5%;
     position: absolute;
 
+  }
+
+  .gapbox{
+    top: 14vh;
   }
 
   .card::before {
@@ -134,13 +163,15 @@ h3{
     font-size: 3rem;
     position: absolute;
     left: 900px;
-    top: 100px;
+    top: 300px;
+    z-index: 2;
 
   }
   h3{
     position: absolute;
-    top:200px;
+    top:400px;
     left: 950px;
+    z-index: 2;
   }
 
   .svgload{
@@ -150,3 +181,10 @@ h3{
   }
 
 }
+
+
+.height-div{
+  height: 500px; width: 100%; background:#eeeeee; 
+}
+.linewrap{display: inline-block;vertical-align: top;width: 100%;}
+.linewrap > div{float: left;width: 50%;}

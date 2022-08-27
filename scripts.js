@@ -1,27 +1,23 @@
-let intro = document.querySelector('.intro');
-let logo = document.querySelector('.logo-header');
-let logoSpan = document.querySelector('.logo');
+// const svgLine = document.querySelector('line');
 
-window.addEventListener('DOMContentLoaded', ()=>{
-  setTimeout(() =>{
-    logoSpan.forEach((span, idx)=>{
-      setTimeout(() =>{
-        span.classList.add('active');
-        
-      }, (idx + 1) * 400)
-    });
-    
-    setTimeout(() =>{
-      logoSpan.forEach((span, idx)=>{
-        setTimeout(()=>{
-          span.classList.remove('active');
-          span.classList.add('fade');
-          
-        }, (idx+1) * 50)
-      })
-    }, 2000);
-    setTimeout(() =>{
-      intro.style.top = '-100vh';
-    }, 2300)
-  })
-})
+// const length = svgLine.getTotalLength();
+
+// svgLine.style.strokeDasharray = length;
+// svgLine.style.strokeDashoffset = length;
+
+// const drawWhenScroll = () => {
+//   // console.log(calcScrollPercent());
+//   const drawsvg = length * calcScrollPercent();
+//   svgLine.style.strokeDashoffset = drawsvg;
+//   svgLine.style.strokeDashoffset = length - drawsvg;
+// }
+
+// const calcScrollPercent = () => {
+//   let height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+//   return (document.documentElement.scrollTop / height);
+// }
+
+
+
+
+// window.addEventListener('scroll', drawWhenScroll);
