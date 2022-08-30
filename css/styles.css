@@ -16,56 +16,9 @@ body{
     
 }
 
- /* create a parallax scroll for photo1 and moon image so that the moon image is above the photo1 image  */
-
-.moon {
-    max-width: 16vw;
-    min-width: 13vw;
-    min-height: 13vh;
-    height: auto;
+.chat-btn{
     position: absolute;
-    border: 44px;
-    top: 20%;
-    left: 80%;
-    z-index: 10;
-    transform-style: preserve-3d;
-    transform: perspective(1000px);
-    transform: translateZ(20px);     
-  }
-/*  style="width: 10%; height: auto; background-color: transparent; top: 5rem; 
-transform-style: preserve-3d; transform: perspective(1000px); transform: translateZ(20px); 
-transform: translate(-50%, -50%);" */
-
-.parallax {
-    /* max-width: 2037px;  */
-    /* width: 95vw;  */
-    /* max-height: 859px;  */
-    /* height: auto;  */
-    /* Create the parallax scrolling effect */
-    background-attachment: fixed;
-    background-size: cover;
-    position: fixed;
-    background-repeat: no-repeat;
-    z-index: 1;
-    position: relative;
-    font-family: 'Roboto Mono', monospace;
-
-}
-
-.parallax::before{
-    position: absolute;
-    bottom: 0;
-    width: 100%;
-    height: 100vh;
-    background-color: #212534;
-    z-index: 10;
-
-}
-
-
-.parallax .chat-btn{
-    position: absolute;
-    bottom:30%;
+    bottom:20%;
     left: 50%;
     min-width: 18%;
     transform-style: preserve-3d;
@@ -78,18 +31,11 @@ transform: translate(-50%, -50%);" */
     border-radius:50px;
     background-color: black;
     color: rgb(183, 183, 183);
-    font-size: 2rem;
+    font-size: 1.5rem;
     z-index: 10 !important;
-}
+    font-family: 'Roboto Mono', monospace;
 
-.parallax img{
-    width: 100%;
-    height: 600px;
-    object-fit: cover;
-    object-position: bottom;
-    z-index: 10;
 }
-
 
 #chat-button:hover{
     background-color: rgb(183, 183, 183);
@@ -98,7 +44,7 @@ transform: translate(-50%, -50%);" */
 }
 
 section{
-    background-image: url('https://cdn.discordapp.com/attachments/446823972051353611/1006702754359676978/7996065278_65edb04cc7_o.jpg');
+    /* background-image: url('https://cdn.discordapp.com/attachments/446823972051353611/1006702754359676978/7996065278_65edb04cc7_o.jpg'); */
     background-repeat: no-repeat;
     background-size: cover;
     background-position: center;
@@ -106,34 +52,12 @@ section{
 
 }
 
-.parallax h2{
-    max-width: 53%;
-    min-width: 19%;
-    min-height: 16%;
-    max-height: 18%;
-    display: flex;
-    flex-direction: column;
-    top: 30%;
-    left: 50%;
-    position: absolute;
-    margin-left: -59vw;
-    margin: -25px 0px 0px -135px;
-    color: rgb(183, 183, 183);
-    border: 4px solid rgb(0, 0, 0);
-    background-color: rgba(0, 0, 0, 0.825);
-    border-radius: 20px;
-    font-size: 2em;
-    text-align: center;
-    padding: 8px 5px;
-    transform: translateZ(20px);
-    flex-direction: column;
-}
-
 .sec{
+    top: 100vh;
     content: "";
+    display: inline-block;
     position: relative;
-    padding: 100px;
-    background: linear-gradient(to top #212534, transparent);
+    padding: 100px 10px 20px 20px;
     color: rgb(183, 183, 183);
     font-family: Helvetica;
 
@@ -149,32 +73,8 @@ section{
 
 @media (max-width: 450px) {
     .sec h2{
-        font-size: 3px;
-    }
-
-    .parallax {
-        top: calc(100vh / 600px);
-        bottom: 10px;
-        max-height: 20vh;
-        width: 100vw;
-        top: 50%;
-        height: 50vh;
-    }
-    .parallax .chat-btn{
-        font-size: 12px;
-        transform: translate3d(-50%,0,10px);
-    }
-}
-
-.intro{
-    position: fixed;
-    z-index: 0;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100vh;
-    transition: 2s;
-
+        font-size: 30px;
+    } 
 }
 
 header{
@@ -182,7 +82,7 @@ header{
     top: 0;
     left: 0;
     width: 100%;
-    padding: 25px 70px;
+    padding: 25px 35px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -230,7 +130,7 @@ header ul li a:hover,
 section header nav div ul li a:active{
     color: rgb(0, 0, 0);
     background-color: rgb(183, 183, 183);
-    z-index: 10000;
+    z-index: 10;
     transition: .75s;
 }
 
@@ -251,7 +151,7 @@ section header nav div ul li a:active{
 .toggle-btn{
     position: absolute ;
     top: 2rem;
-    right: 5rem;
+    right: 3rem;
     display: none;
     flex-direction: column;
     justify-content: space-between;
@@ -273,6 +173,106 @@ section header nav div ul li a:active{
     transition: color 1s ease;
 }
 
+.containter{
+    position: relative;
+    top: 50vw;
+    left: 5vw;
+    width: 80vw;
+    height: 20vh;
+    z-index: 10;
+}
+
+.containter .data{
+    font-family: 'Roboto Mono', monospace;
+    color: rgb(183, 183, 183);
+}
+
+.containter .data2{
+    font-family: 'Roboto Mono', monospace;
+    color: rgb(183, 183, 183);
+    padding-right: 10px;
+}
+
+#padding-right{
+    position: absolute;
+    right: 0px;
+    padding-right: 10px;
+    bottom: 0px;
+}
+
+#welcome{
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    width: 70vw;
+    height: 100%;
+    z-index: 1;
+}
+
+
+#welcome path:nth-child(1){
+    stroke-dasharray: 20%;
+}
+
+#welcome path:nth-child(2){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+#welcome path:nth-child(3){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+#welcome path:nth-child(4){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+#welcome path:nth-child(5){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+#welcome path:nth-child(6){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+#welcome path:nth-child(7){
+    stroke-dasharray: 0px;
+    stroke-dashoffset: 50px;
+}
+
+@media screen and (min-width: 1080px) {
+    .containter{
+        top: 5vw;
+        width: 60vw;
+        height: 33vh;
+        left: 15vw;
+    }
+
+    #padding-right{
+        padding-right: 0px;
+    }
+
+    .sec{
+        padding: 10px 10px 20px 50px;
+    }
+
+    #welcome{
+        width: 50vw;
+        height: 60%;
+    }
+
+    #welcome path:nth-child(1){
+        stroke-dasharray: 0px;
+        stroke-dashoffset: 50px;
+    }
+}
+    
+
 @media (max-width: 640px){
     .toggle-btn{
         display: flex;
@@ -281,4 +281,8 @@ section header nav div ul li a:active{
     .navbar-links{
         display: none;
     }
+
+
+
+
 }

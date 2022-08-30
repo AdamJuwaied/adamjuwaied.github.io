@@ -33,7 +33,7 @@ body {
   color: rgb(88 199 250 / 0%);
   font-family: cursive;
   top: 195px;
-  left: 45px;
+  left: 23px;
   z-index: 2;
 
 }
@@ -46,7 +46,7 @@ body {
   border-radius: 300px;
   align-items: center;
   z-index: 2;
-
+  border: 5px solid #191c29;
 }
   
 .card::before {
@@ -63,7 +63,7 @@ body {
   z-index: 2;
   top: -1.25%;
   left: -1.25%;
-  animation: spin 2.5s linear infinite;
+  animation: spin 8s linear infinite;
 }
   
 @keyframes spin {
@@ -86,7 +86,7 @@ a {
 h2{
   font-size: 2.15rem;
   top: 100px;
-  left: 75px;
+  left: 65px;
   margin-bottom: 0px;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace; 
@@ -96,7 +96,7 @@ h2{
 
 h3{
   position: absolute;
-  left: 60px;
+  left: 65px;
   top: 535px;
   font-size: 2rem;
   color: rgb(183, 183, 183);
@@ -155,7 +155,6 @@ h3{
     left: 5px;
     height: 65vh;
     width: 65vh;
-    border: 5px solid #191c29;
 
   }
 
