@@ -13,7 +13,11 @@
 body{
     background-color: #1e1e1e;
     overflow-x: hidden;
-    
+    -webkit-user-select: none; /* Safari */        
+    -moz-user-select: none; /* Firefox */
+    -ms-user-select: none; /* IE10+/Edge */
+    user-select: none;
+        
 }
 
 .chat-btn{
@@ -57,7 +61,7 @@ section{
     content: "";
     display: inline-block;
     position: relative;
-    padding: 100px 10px 20px 20px;
+    padding: 0px 10px 20px 20px;
     color: rgb(183, 183, 183);
     font-family: Helvetica;
 
@@ -212,37 +216,66 @@ section header nav div ul li a:active{
 
 
 #welcome path:nth-child(1){
-    stroke-dasharray: 20%;
+    stroke-dasharray: 548.290771484375px;
+    stroke-dashoffset: 548.290771484375px;
+    animation: welcome-intro 1s ease-in-out forwards 0.2s, fill 0.5s linear forwards 0.3s; 
 }
 
 #welcome path:nth-child(2){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 296.6050109863281px;
+    stroke-dashoffset: 296.6050109863281px;
+    animation: welcome-intro 1s ease-in-out forwards 0.4s, fill 0.5s linear forwards 0.6s; 
+
 }
 
 #welcome path:nth-child(3){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 162.81597900390625px;
+    stroke-dashoffset: 162.81597900390625px;
+    animation: welcome-intro 1s ease-in-out forwards 0.6s, fill 0.5s linear forwards 0.9s; 
+
 }
 
 #welcome path:nth-child(4){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 204.95074462890625px;
+    stroke-dashoffset: 204.95074462890625px;
+    animation: welcome-intro 1s ease-in-out forwards 0.8s, fill 0.5s linear forwards 1.2s; 
+
 }
 
 #welcome path:nth-child(5){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 274.5055236816406px;
+    stroke-dashoffset: 274.5055236816406px;
+    animation: welcome-intro 1s ease-in-out forwards 1s, fill 0.5s linear forwards 1.6s; 
+
 }
 
 #welcome path:nth-child(6){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 421.38421630859375px;
+    stroke-dashoffset: 421.38421630859375px;
+    animation: welcome-intro 1s ease-in-out forwards 1.2s, fill 0.5s linear forwards 1.9s; 
+
 }
 
 #welcome path:nth-child(7){
-    stroke-dasharray: 0px;
-    stroke-dashoffset: 50px;
+    stroke-dasharray: 296.6053161621094px;
+    stroke-dashoffset: 296.6053161621094px;
+    animation: welcome-intro 1s ease-in-out forwards 1.4s, fill 0.5s linear forwards 2.1s; 
+
+}
+
+@keyframes welcome-intro{
+    to{
+        stroke-dashoffset: 0%;
+    }
+}
+
+@keyframes fill{
+    from{
+        fill: transparent;
+    }
+    to{
+        fill: rgb(183, 183, 183);
+    }
 }
 
 @media screen and (min-width: 1080px) {
