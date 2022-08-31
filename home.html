@@ -7,13 +7,15 @@
     <link rel="stylesheet" href="css/styles.css">
     <title>Adam's Website</title>
     <script src="https://cdn.jsdelivr.net/npm/baffle@0.3.6/dist/baffle.min.js"></script>
+    <script src="scripts.js"></script>
 </head>
 
 <body>
     <section>
         <header>
-            <a href="home.html" class="logo"> .AdamJuwaied </a>
-
+            <div class="btn">
+                <a href="home.html" class="btn logo"> .AdamJuwaied </a>
+            </div>
             <nav class="navbar">
                 <a href="#" class="toggle-btn">
                     <span class="bar"></span>
@@ -22,10 +24,18 @@
                 </a>
                 <div class="navbar-links">
                     <ul>
-                        <li><a href="home.html" class="active">.Home</a></li>
-                        <li><a href="work.html">.Work</a></li>
-                        <li><a href="about.html">.About</a></li>
-                        <li><a href="contact.html">.Contact</a></li>
+                        <div class="btn">
+                            <li><a href="home.html">.Home</a></li>
+                        </div>
+                        <div class="btn">   
+                            <li><a href="work.html">.Work</a></li>
+                        </div>
+                        <div class="btn">
+                            <li><a href="about.html">.About</a></li>
+                        </div>
+                        <div class="btn">
+                            <li><a href="contact.html">.Contact</a></li>
+                        </div>  
                     </ul>
                 </div>
             </nav>
@@ -72,8 +82,14 @@
             text2.reveal(3900);
 
         </script>
+
+
+
+
     </div>
-    <a href="contact.html" class="chat-btn" id="chat-button"> Let's Talk! </a>
+        <div class="btn">
+            <a href="contact.html" class="chat-btn" id="chat-button">Let's Talk!</a>
+        </div>
 
 
     <div class="sec">
@@ -85,6 +101,28 @@
             Thank you for reading my small bio!
         </p> <br><br>
     </div>
-    <script type="text/javascript" src="./vanilla-tilt.js"></script>
+
+    <script type="text/javascript">
+
+        const btns = document.querySelectorAll('.btn');
+
+        btns.forEach((btn) => {
+            btn.addEventListener("mousemove", function(e) {
+                const position = btn.getBoundingClientRect();
+                const x = e.pageX - position.left - position.width / 2;
+                const y = e.pageY - position.top - position.height / 2;
+
+                btn.children[0].style.transform = "translate(" + x * 0.2 + "px, " + y * 0.3 + "px)";
+            });
+        })
+
+        btns.forEach((btn) => {
+            btn.addEventListener("mouseout", function(e) {
+                btn.children[0].style.transform = "translate(0px, 0px)";
+            });
+        })
+
+    </script>
+
     </body>
 </html>
