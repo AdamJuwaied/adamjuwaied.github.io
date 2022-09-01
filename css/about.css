@@ -187,9 +187,14 @@ h3{
   display: block; 
   margin-top: 50px;
   color: rgb(183, 183, 183); 
+  padding-bottom: 10vh;
 }
 
-@media screen and (min-width: 1080px) {
+.jordanInfo img{
+  width: 45%;
+}
+
+@media screen and (min-width: 1440px) {
   .card {
     z-index: 10;
     top: 115px;
@@ -235,19 +240,38 @@ h3{
 
   .svgload{
     position: absolute;
+    top:40vh;
     width: 100vw;
     height: 0px;
   }
 
   .personalInfo{
     font-size: 1rem;
-    left: 8vw;
-    top: 40vh;
+    left: 12vw;
+    top: 50vh;
     width: 35%;
   }
 
   .personalInfo br{
     margin-top: 45px; 
+  }
+
+  .friendPic{
+    width: 70vw;
+    padding-left: 57vw;
+  }
+
+  .jordanInfo{
+    top: 106vh;
+    left: 36vw;
+    font-size: 1.5rem;
+  }
+
+  .jordanInfo img{
+    content: "";
+    padding-top: 38vh;
+    padding-left: 6vw;
+    width: 63%;
   }
 }
 
