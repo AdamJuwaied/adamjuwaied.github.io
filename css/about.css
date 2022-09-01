@@ -32,8 +32,8 @@ body {
   font-size: 1.5em;
   color: rgb(88 199 250 / 0%);
   font-family: cursive;
-  top: 195px;
-  left: 23px;
+  top: 35vh;
+  left: 10vw;
   z-index: 2;
 
 }
@@ -61,7 +61,7 @@ body {
   align-items: center;
   position: absolute;
   z-index: 2;
-  top: -1.25%;
+  top: -2%;
   left: -1.25%;
   animation: spin 8s linear infinite;
 }
@@ -85,8 +85,8 @@ a {
 
 h2{
   font-size: 2.15rem;
-  top: 100px;
-  left: 65px;
+  top: 17vh;
+  left: 55px;
   margin-bottom: 0px;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace; 
@@ -96,8 +96,8 @@ h2{
 
 h3{
   position: absolute;
-  left: 65px;
-  top: 535px;
+  left: 55px;
+  top: 82vh;
   font-size: 2rem;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace;
@@ -122,11 +122,71 @@ h3{
   position: absolute;
   width: 50%;
   height: 35%;
-  top: 400px;
+  top: 55vh;
   left: 25vw;
   z-index: 1;
   color: --black;
   background-color: var(--black);
+}
+
+.aboutInfo{
+  position: absolute;
+  width: 100%;
+  height: 34vh;
+  top: 350px;
+  z-index: -3;
+}
+
+.personalInfo{
+  position: absolute;
+  width: 40%;
+  height: 60%;
+  top: 50vh;
+  left: 3vw;
+  z-index: 1;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+  font-size: .75rem;
+}
+
+.personalInfo br{
+  display: block; 
+  content: ""; 
+  margin-top: 50px; 
+}
+
+.friendPic{
+  content: "";
+  width: 100vw;
+  top: 85vh;
+  height: 35vh;
+  left: 50vw;
+  padding-left: 50vw;
+  padding-top: 55vh;
+}
+
+.friendPic img{
+  top: 50vh;
+  width: 100%;
+  border-radius: 20px;
+}
+
+.jordanInfo{
+  position: absolute;
+  width: 40%;
+  height: 60%;
+  top: 50vh;
+  left: 3vw;
+  z-index: 1;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+  font-size: .75rem;
+}
+
+.jordanInfo br{
+  display: block; 
+  margin-top: 50px;
+  color: rgb(183, 183, 183); 
 }
 
 @media screen and (min-width: 1080px) {
@@ -179,6 +239,16 @@ h3{
     height: 0px;
   }
 
+  .personalInfo{
+    font-size: 1rem;
+    left: 8vw;
+    top: 40vh;
+    width: 35%;
+  }
+
+  .personalInfo br{
+    margin-top: 45px; 
+  }
 }
 
 
