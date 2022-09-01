@@ -55,7 +55,7 @@ body{
     text-align: center;
     display:inline-block;
     padding:10px;
-    border-radius:50px;
+    border-radius: 15px;
     background-color: black;
     color: rgb(183, 183, 183);
     font-size: 1.5rem;
@@ -120,23 +120,21 @@ header{
     z-index: 0;
 }
 
-.nav{
+.navbar-links{
     background-color: transparent !important;
     display: flex;
     justify-content: space-between;
     align-items: center;
     background-attachment: fixed;
     font-family: 'Roboto Mono', monospace;
+    
 
 }
 
 header ul{
-    background-color:transparent !important;
     display: flex;
     justify-content: center;
     align-items: center;
-    
-    
 }
 
 header ul li {
@@ -259,7 +257,7 @@ section header nav div ul li a:active{
 #welcome path:nth-child(3){
     stroke-dasharray: 162.81597900390625px;
     stroke-dashoffset: 162.81597900390625px;
-    animation: welcome-intro 1s ease-in-out forwards 0.6s, fill 0.5s linear forwards 0.9s; 
+    animation: welcome-intro 1s ease-in-out forwards 0.6s, fill 0.5s linear forwards .9s; 
 
 }
 
@@ -273,14 +271,14 @@ section header nav div ul li a:active{
 #welcome path:nth-child(5){
     stroke-dasharray: 274.5055236816406px;
     stroke-dashoffset: 274.5055236816406px;
-    animation: welcome-intro 1s ease-in-out forwards 1s, fill 0.5s linear forwards 1.6s; 
+    animation: welcome-intro 1s ease-in-out forwards 1s, fill 0.5s linear forwards 1.5s;
 
 }
 
 #welcome path:nth-child(6){
     stroke-dasharray: 421.38421630859375px;
     stroke-dashoffset: 421.38421630859375px;
-    animation: welcome-intro 1s ease-in-out forwards 1.2s, fill 0.5s linear forwards 1.9s; 
+    animation: welcome-intro 1s ease-in-out forwards 1.2s, fill 0.5s linear forwards 1.8s; 
 
 }
 
@@ -302,12 +300,11 @@ section header nav div ul li a:active{
         fill: transparent;
     }
     to{
-        fill: rgb(183, 183, 183);
+        fill: url(#MyGradient);
     }
 }
 
 @media screen and (min-width: 1080px) {
-
     .chat-btn{
         top: 25vh;
         left: 40vw;
@@ -340,6 +337,12 @@ section header nav div ul li a:active{
     }
 }
     
+@media screen and (min-width: 1440px) {
+    #welcome{
+        width: 60vw;
+        height: 60%;
+    }
+}
 
 @media (max-width: 640px){
     .toggle-btn{
@@ -349,8 +352,4 @@ section header nav div ul li a:active{
     .navbar-links{
         display: none;
     }
-
-
-
-
 }
