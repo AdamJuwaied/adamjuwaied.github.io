@@ -304,6 +304,12 @@ section header nav div ul li a:active{
     }
 }
 
+@media screen and (min-width: 768px) {
+    .logo{
+        padding: 6px 9vw 10px 15px;
+    }
+}
+
 @media screen and (min-width: 1080px) {
     .chat-btn{
         top: 25vh;

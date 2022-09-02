@@ -194,6 +194,97 @@ h3{
   width: 45%;
 }
 
+@media screen and (min-width: 768px) {
+  .card {
+    z-index: 10;
+    top: 30vh;
+    left: -8%;
+    position: absolute;
+
+  }
+
+  .gapbox{
+    top: 14vh;
+  }
+
+  .card::before {
+    left: -4px;
+    top: -4px;
+    height: 36vh;
+    width: 36vh;
+  }
+
+  .card img {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    height: 35vh;
+    width: 35vh;
+
+  }
+
+  h2{
+    font-size: 3rem;
+    position: absolute;
+    left: 50vw;
+    top: 40vh;
+    z-index: 2;
+
+  }
+  h3{
+    position: absolute;
+    top: 50vh;
+    left: 55vw;
+    z-index: 2;
+    width: 35%;
+  }
+
+  .svgload{
+    position: absolute;
+    top:40vh;
+    width: 100vw;
+    height: 0px;
+  }
+
+  .personalInfo{
+    font-size: 1rem;
+    left: 5vw;
+    top: 50vh;
+    width: 39%;
+  }
+
+  .personalInfo br{
+    margin-top: 45px; 
+  }
+
+  .friendPic{
+    width: 90vw;
+    padding-left: 67vw;
+  }
+
+  .jordanInfo{
+    top: 111.5vh;
+    left: 23vw;
+    font-size: 1.5rem;
+  }
+
+  .jordanInfo img{
+    content: "";
+    padding-top: 27.75vh;
+    padding-left: 13vw;
+    width: 111%;
+  }
+}
+
+@media screen and (min-width: 820px){
+  .jordanInfo img{
+    content: "";
+    padding-top: 27.75vh;
+    padding-left: 7vw;
+    width: 103%;
+  }
+}
+
 @media screen and (min-width: 1440px) {
   .card {
     z-index: 10;
