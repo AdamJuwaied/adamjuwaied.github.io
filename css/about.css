@@ -285,6 +285,94 @@ h3{
   }
 }
 
+
+@media screen and (min-width: 1366px){
+  .card {
+    z-index: 10;
+    top: 25vh;
+    left: -5%;
+    position: absolute;
+
+  }
+
+  .gapbox{
+    top: 14vh;
+  }
+
+  .card::before {
+    left: -2px;
+    top: -2px;
+    height: 56vh;
+    width: 56vh;
+  }
+
+  .card img {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    height: 55vh;
+    width: 55vh;
+
+  }
+
+  h2{
+    font-size: 3rem;
+    position: absolute;
+    left: 65vw;
+    top: 45vh;
+    z-index: 2;
+
+  }
+  h3{
+    position: absolute;
+    top:55vh;
+    left: 68vw;
+    z-index: 2;
+  }
+
+  .svgload{
+    position: absolute;
+    top:50vh;
+    width: 100vw;
+    height: 0px;
+  }
+
+  .personalInfo{
+    font-size: 1rem;
+    left: 12vw;
+    top: 70.5vh;
+    width: 30%;
+  }
+
+  .personalInfo br{
+    margin-top: 45px; 
+  }
+
+  .friendPic{
+    width: 70vw;
+    padding-left: 60vw;
+  }
+
+  .friendPic img{
+    padding-top: 15vh;
+    padding-left: 1vw;
+    width: 130%;
+  }
+
+  .jordanInfo{
+    top: 117vh;
+    left: 36vw;
+    font-size: 1.5rem;
+  }
+
+  .jordanInfo img{
+    content: "";
+    padding-top: 38vh;
+    padding-left: 6vw;
+    width: 62%;
+  }
+}
+
 @media screen and (min-width: 1440px) {
   .card {
     z-index: 10;
@@ -339,13 +427,19 @@ h3{
   .personalInfo{
     font-size: 1rem;
     left: 12vw;
-    top: 50vh;
+    top: 60vh;
     width: 35%;
   }
 
   .personalInfo br{
-    margin-top: 45px; 
+    margin-top: 50px; 
   }
+
+  .friendPic img {
+    padding-top: 10vh;
+    padding-left: 1vw;
+    width: 130%;
+}
 
   .friendPic{
     width: 70vw;
@@ -353,16 +447,16 @@ h3{
   }
 
   .jordanInfo{
-    top: 106vh;
+    top: 122vh;
     left: 36vw;
     font-size: 1.5rem;
   }
 
   .jordanInfo img{
     content: "";
-    padding-top: 38vh;
-    padding-left: 6vw;
-    width: 63%;
+    padding-top: 39vh;
+    padding-left: 5vw;
+    width: 64%;
   }
 }
 
@@ -440,14 +534,14 @@ h3{
   }
 
   .jordanInfo{
-    top: 116vh;
+    top: 127vh;
     left: 36vw;
     font-size: 1.5rem;
   }
 
   .jordanInfo img{
     content: "";
-    padding-top: 41vh;
+    padding-top: 40vh;
     padding-left: 6vw;
     width: 61%;
   }
