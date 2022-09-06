@@ -111,6 +111,8 @@ h3{
   top: 100px;
 }
 
+
+
 .load2{
   position: absolute;
   width: 20vw;
@@ -351,6 +353,7 @@ h3{
   .friendPic{
     width: 70vw;
     padding-left: 60vw;
+    z-index: 5;
   }
 
   .friendPic img{
