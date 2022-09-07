@@ -47,7 +47,9 @@
 <body>
     <section>
         <header>
-            <a href="home.html" class="logo"> .AdamJuwaied </a>
+            <div class="btn">
+                <a href="home.html" class="btn logo"> .AdamJuwaied </a>
+            </div>
             <nav class="navbar">
                 <a href="#" class="toggle-btn">
                     <span class="bar"></span>
@@ -56,15 +58,22 @@
                 </a>
                 <div class="navbar-links">
                     <ul>
-                        <li><a href="home.html">.Home</a></li>
-                        <li><a href="work.html">.Work</a></li>
-                        <li><a href="about.html" class="active">.About</a></li>
-                        <li><a href="contact.html">.Contact</a></li>
+                        <div class="btn">
+                            <li><a href="home.html">.Home</a></li>
+                        </div>
+                        <div class="btn">   
+                            <li><a href="work.html">.Work</a></li>
+                        </div>
+                        <div class="btn">
+                            <li><a href="about.html">.About</a></li>
+                        </div>
+                        <div class="btn">
+                            <li><a href="contact.html">.Contact</a></li>
+                        </div>
                     </ul>
                 </div>
             </nav>
         </header>
-
         
         <!-- Put pixi class into card class to appear within the circle -->
         
@@ -182,6 +191,7 @@ for (let i = 0; i < starAmount; i++) {
     triangle2.style.strokeDashoffset = 1 + length2 - draw;
     }
 </script>
-<script src="scripts.js"> </script>
 </body>
+<script src="home.js"></script>
+
 </html>

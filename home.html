@@ -5,9 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="lottie.js"></script>
     <title>Adam's Website</title>
     <script src="https://cdn.jsdelivr.net/npm/baffle@0.3.6/dist/baffle.min.js"></script>
-    <script src="scripts.js"></script>
+
 
 </head>
 
@@ -17,8 +18,7 @@
 
     <div id="WavyDotsBG2"> </div>
 
-    <script src="lottie.js"></script>
-    <script src="home.js"></script>
+
 
     <section>
         <header>
@@ -107,29 +107,7 @@
     </div>
         <a href="contact.html" class="chat-btn">Let's Talk!</a>
 
-
-
-    <script type="text/javascript">
-
-        const btns = document.querySelectorAll('.btn');
-
-        btns.forEach((btn) => {
-            btn.addEventListener("mousemove", function(e) {
-                const position = btn.getBoundingClientRect();
-                const x = e.pageX - position.left - position.width / 2;
-                const y = e.pageY - position.top - position.height / 2;
-
-                btn.children[0].style.transform = "translate(" + x * 0.2 + "px, " + y * 0.3 + "px)";
-            });
-        })
-
-        btns.forEach((btn) => {
-            btn.addEventListener("mouseout", function(e) {
-                btn.children[0].style.transform = "translate(0px, 0px)";
-            });
-        })
-
-    </script>
-
     </body>
+    <script src="home.js"></script>
+
 </html>
