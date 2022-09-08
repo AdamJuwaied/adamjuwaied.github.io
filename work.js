@@ -8,7 +8,7 @@ const balloon = bodymovin.loadAnimation({
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: 'https://assets4.lottiefiles.com/temp_editor_files/lf30_editor_h0hsw28y.json'
+    path: 'https://assets5.lottiefiles.com/temp_editor_files/lf30_editor_ym8x4yof.json'
 });
 
 const augmented = bodymovin.loadAnimation({
