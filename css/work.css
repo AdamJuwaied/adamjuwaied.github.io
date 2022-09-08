@@ -2,5 +2,40 @@ body {
     width: 100vw;
     height: 100vh;
     margin: 0;
-    overflow: hidden;
-  }
+}
+
+#balloon{
+  position: absolute;
+  width: 45vw;
+  height: 75vh;
+  display: grid;
+  left: 50%;
+  top: 175vh;
+}
+
+#augmented{
+  position: absolute;
+  width: 45vw;
+  height: 75vh;
+  display: grid;
+  left: 50%;
+}
+
+#coding{
+  position: absolute;
+  width: 45vw;
+  height: 75vh;
+  display: grid;
+  left: 50%;
+  top: 100vh;
+}
+
+#bm {
+  content: "";
+  left: 0vw;
+  position: absolute;
+  width: 70vw;
+  height: 300vh;
+  rotate: 0deg;
+  z-index: -1;
+}
