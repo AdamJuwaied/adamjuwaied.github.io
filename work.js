@@ -1,4 +1,5 @@
 // https://assets4.lottiefiles.com/temp_editor_files/lf30_editor_h0hsw28y.json weather balloon
+// https://assets5.lottiefiles.com/temp_editor_files/lf30_editor_ym8x4yof.json satellite
 // https://assets1.lottiefiles.com/packages/lf20_t03tbmqu.json augmented reality
 // https://assets5.lottiefiles.com/temp_editor_files/lf30_editor_cbc4pzko.json coding computer
 

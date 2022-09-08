@@ -43,7 +43,7 @@ body {
 
 @media screen and (max-width: 540px){
   #balloon{
-    top: 100vh;
+    top: 95vh;
     left: 60%;
   }
 
@@ -54,6 +54,16 @@ body {
 
   #augmented{
     top: -10vh;
-    left: 60%;
+    left: 62%;
   } 
+
+  #bm {
+    content: "";
+    left: -50vw;
+    position: absolute;
+    width: 100vw;
+    height: 250vh;
+    rotate: 0deg;
+    z-index: -1;
+  }
 }
