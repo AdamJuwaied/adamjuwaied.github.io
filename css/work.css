@@ -19,6 +19,7 @@ body {
   height: 75vh;
   display: grid;
   left: 50%;
+  top: 25vh;
 }
 
 #coding{
@@ -27,7 +28,7 @@ body {
   height: 75vh;
   display: grid;
   left: 50%;
-  top: 100vh;
+  top: 110vh;
 }
 
 #bm {
@@ -38,4 +39,21 @@ body {
   height: 300vh;
   rotate: 0deg;
   z-index: -1;
+}
+
+@media screen and (max-width: 540px){
+  #balloon{
+    top: 100vh;
+    left: 60%;
+  }
+
+  #coding{
+    top: 55vh;
+    left: 60%;
+  }
+
+  #augmented{
+    top: -10vh;
+    left: 60%;
+  } 
 }
