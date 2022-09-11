@@ -17,6 +17,11 @@ body {
   flex-direction: column;
   padding-bottom: 2rem;
   box-sizing: border-box;
+  height: 100vh;
+}
+
+.container {  margin: 0 auto;
+  counter-reset: box;
 }
 
 .card {

@@ -2,6 +2,8 @@ body {
     width: 100vw;
     height: 100vh;
     margin: 0;
+    scroll-behavior: smooth;
+    animation-timing-function: linear;
 }
 
 #balloon{
