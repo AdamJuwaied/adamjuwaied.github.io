@@ -421,10 +421,6 @@ section header nav div ul li a:active{
 } */
 
 @media screen and (min-width: 1080px) {
-    .chat-btn{
-        top: 70vh;
-        left: 40vw;
-    }
 
     .containter{
         top: 5vw;

@@ -3,7 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initi    <title>Contact</title>
+    <script src="scripts.js"></script>
+    <link rel="stylesheet" href="assets/css/contact.css">
+    <link rel="stylesheet" href="assets/css/styles.css">
+
+
+</head>
+<body>
+    <div id="bm"></div>
+
+    <script src="assets/scripts/lottie.js"></script>
+    <script src="assets/scripts/home.js"></script>
+
     <title> Contact </title>
     <link rel="stylesheet" href="assets/css/styles.css">
 
@@ -41,8 +53,37 @@
         </header>
     </section>
 
+    <div class="container" id="screen_bg_blur">
+        <div class="information">
+            <form action="https://formsubmit.co/juwaiedz@gmail.com" method="POST">
+                <div class="form__input">
+                    <input type="text" placeholder="Full Name" id="name" required>
+                </div>
+
+                <div class="form__input">
+                    <input type="text" placeholder="Email" id="email" required>                    
+                </div>
+
+                <div class="form__input">
+                    <input type="text" placeholder="Subject" id="subject" required>                    
+                </div>
+
+                <div class="form__input">
+                <textarea name="message" id="Message" placeholder="Message" required></textarea>
+                </div>
+
+                <div class="form__input">
+                    <input type="submit" class="chat-btn" value="Send"/>
+            </form>
+        </div>
+    </div>
+    <script src="https://smtpjs.com/v3/smtp.js" ></script>
+    <script>
+        function sendEmail() {
+            Email.send({
+                Host: "smtp.gmail.com",
+                Username: "
+        }
+    </script>
 </body>
-
-<script src="assets/scripts/home.js"></script>
-
 </html>

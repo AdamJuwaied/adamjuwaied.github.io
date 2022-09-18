@@ -9,7 +9,7 @@ const balloon = bodymovin.loadAnimation({
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: 'https://assets5.lottiefiles.com/temp_editor_files/lf30_editor_ym8x4yof.json'
+    path: 'assets/json/weatherBalloon.json'
 });
 
 const augmented = bodymovin.loadAnimation({
@@ -17,7 +17,7 @@ const augmented = bodymovin.loadAnimation({
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: 'https://assets1.lottiefiles.com/packages/lf20_t03tbmqu.json'
+    path: 'assets/json/AR.json'
 });
 
 const coding = bodymovin.loadAnimation({
@@ -25,7 +25,7 @@ const coding = bodymovin.loadAnimation({
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: 'https://assets5.lottiefiles.com/temp_editor_files/lf30_editor_cbc4pzko.json'
+    path: 'assets/json/coding.json'
 });
 
 const animation = bodymovin.loadAnimation({
@@ -33,5 +33,5 @@ const animation = bodymovin.loadAnimation({
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    path: 'https://assets2.lottiefiles.com/temp_editor_files/lf30_editor_l0xh1ey6.json'
+    path: 'assets/json/bm.json'
 });
