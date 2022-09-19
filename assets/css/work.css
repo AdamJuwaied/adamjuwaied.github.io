@@ -43,6 +43,20 @@ body {
   z-index: -1;
 }
 
+#screen_bg_blur{
+  transform: translate(15%, 0%);
+  padding: 1rem;
+  border-radius: 30px;
+  background-color: #141414a7;
+  -webkit-backdrop-filter: blur(20px);
+  -o-backdrop-filter: blur(20px);
+  -moz-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:.8rem .8rem 1.4rem var(#c8d0e7), 
+          -.2rem -.2rem 1.8rem var(#FFFFFF);
+  z-index: 20;
+}
+
 @media screen and (max-width: 540px){
   #balloon{
     top: 95vh;
