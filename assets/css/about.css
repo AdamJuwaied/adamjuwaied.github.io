@@ -45,7 +45,7 @@ body {
 
 .card img{
   position: relative;
-  top: 3px;
+  top: 1px;
   width: 100%;
   height: 100%;
   border-radius: 300px;
@@ -178,9 +178,9 @@ h3{
 
 .aboutInfo{
   position: absolute;
-  width: 100%;
+  width: 105%;
   height: 34vh;
-  top: 350px;
+  top: 340px;
   z-index: -3;
 }
 
@@ -308,7 +308,7 @@ h3{
   .friendPic{
     width: 90vw;
     padding-left: 70vw;
-    padding-top: 80vh;
+    padding-top: 120vh;
   }
 
   .jordanInfo{
@@ -393,15 +393,15 @@ h3{
   }
 
   .friendPic{
-    width: 70vw;
-    padding-left: 60vw;
+    width: 80vw;
+    padding-left: 71vw;
     z-index: 5;
   }
 
   .friendPic img{
     padding-top: 15vh;
-    padding-left: 1vw;
-    width: 130%;
+    padding-left: 6vw;
+    width: 195%;
   }
 
   .jordanInfo{
