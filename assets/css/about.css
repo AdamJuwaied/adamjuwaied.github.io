@@ -79,7 +79,30 @@ body {
     --rotate: 360deg;
   }
 }
-  
+
+#bm{
+  content: "" !important;
+  top: -58vh !important;
+  left: 0vw !important;
+  position: absolute !important;
+  width: 99vw !important;
+  height: 333vh !important;
+  rotate: 180deg !important;
+  z-index: -10 !important;
+}
+
+#arrows{
+  position: absolute;
+  top: 60vh;
+  left: 50vw;
+  transform: translate(-56.35%, -35%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 2;
+}
+
 a {
   color: rgb(183, 183, 183);
   text-decoration: none;
@@ -90,8 +113,6 @@ a {
 
 h2{
   font-size: 2.15rem;
-  top: 17vh;
-  left: 55px;
   margin-bottom: 0px;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace; 
@@ -100,9 +121,8 @@ h2{
 }
 
 h3{
+  margin-top: 80px;
   position: absolute;
-  left: 55px;
-  top: 82vh;
   font-size: 2rem;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace;
@@ -116,7 +136,27 @@ h3{
   top: 100px;
 }
 
+.introText{
+  position: absolute;
+  top: 50vh;
+  left: 80vw;
+  width: 30vw;
+  height: 25vh;
+}
 
+#screen_bg_blur{
+  transform: translate(-50%, -50%);
+  padding: 1rem;
+  border-radius: 30px;
+  background-color: #141414a7;
+  -webkit-backdrop-filter: blur(20px);
+  -o-backdrop-filter: blur(20px);
+  -moz-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow:.8rem .8rem 1.4rem var(#c8d0e7), 
+          -.2rem -.2rem 1.8rem var(#FFFFFF);
+  z-index: 20;
+}
 
 .load2{
   position: absolute;
@@ -145,11 +185,8 @@ h3{
 }
 
 .personalInfo{
+  transform: translate(90%, -50%);
   position: absolute;
-  width: 40%;
-  height: 60%;
-  top: 50vh;
-  left: 3vw;
   z-index: 1;
   color: rgb(183, 183, 183);
   font-family: 'Roboto Mono', monospace;
@@ -165,7 +202,7 @@ h3{
 .friendPic{
   content: "";
   width: 100vw;
-  top: 85vh;
+  top: 185vh;
   height: 35vh;
   left: 50vw;
   padding-left: 50vw;
@@ -175,7 +212,6 @@ h3{
 .friendPic img{
   top: 50vh;
   width: 100%;
-  border-radius: 20px;
 }
 
 .jordanInfo{
@@ -201,7 +237,28 @@ h3{
   width: 45%;
 }
 
+@media screen and (max-width: 640px){
+  #bm{
+    display: none;
+  }
+
+  #arrows{
+    top: 70vh;
+  }
+}
+
 @media screen and (min-width: 768px) {
+
+  #bm{
+    content: "";
+    top: -58vh;
+    left: 0vw;
+    position: absolute;
+    width: 99vw;
+    height: 390vh;
+    rotate: 180deg;
+  }
+
   .card {
     z-index: 10;
     top: 30vh;
@@ -230,22 +287,6 @@ h3{
 
   }
 
-  h2{
-    font-size: 3rem;
-    position: absolute;
-    left: 50vw;
-    top: 40vh;
-    z-index: 2;
-
-  }
-  h3{
-    position: absolute;
-    top: 50vh;
-    left: 55vw;
-    z-index: 2;
-    width: 35%;
-  }
-
   .svgload{
     position: absolute;
     top:40vh;
@@ -266,7 +307,8 @@ h3{
 
   .friendPic{
     width: 90vw;
-    padding-left: 67vw;
+    padding-left: 70vw;
+    padding-top: 80vh;
   }
 
   .jordanInfo{
@@ -325,15 +367,10 @@ h3{
   h2{
     font-size: 3rem;
     position: absolute;
-    left: 65vw;
-    top: 45vh;
     z-index: 2;
 
   }
   h3{
-    position: absolute;
-    top:55vh;
-    left: 68vw;
     z-index: 2;
   }
 
@@ -346,8 +383,8 @@ h3{
 
   .personalInfo{
     font-size: 1rem;
-    left: 12vw;
-    top: 70.5vh;
+    left: 25vw;
+    top: 92.5vh;
     width: 30%;
   }
 
@@ -420,8 +457,6 @@ h3{
   }
   h3{
     position: absolute;
-    top:400px;
-    left: 950px;
     z-index: 2;
   }
 
@@ -507,8 +542,6 @@ h3{
   }
   h3{
     position: absolute;
-    top:55vh;
-    left: 68vw;
     z-index: 2;
   }
 

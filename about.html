@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="assets/css/about.css">
     <link rel="stylesheet" href="assets/css/styles.css">
+    <script src="assets/scripts/lottie.js"></script>
+
     <title> About Me </title>
     <style>
         .svgload{
@@ -45,9 +47,8 @@
     </style>
 </head>
 <body>
-
-    <!-- <div class="container" id="container"> -->
-    
+    <div id="bm"></div>
+    <div id="arrows"></div>
         <section>
             <header>
                 <div class="btn">
@@ -83,10 +84,11 @@
                 </div>
         </section>
 
-        <h2> print(aboutMe)</h2>
-        <h3> Learn About Me!</h3>
-        <div class="gapbox">
+        <div class="introText" id="screen_bg_blur" >
+            <h2> print(aboutMe)</h2>
+            <h3> Learn About Me!</h3>
         </div>
+        
         <div class="linewrap">
             <svg  class="svgload" width="374px" height="1738px" viewBox="0 0 374 1738" fill="none" version="1.1" xmlns="http://www.w3.org/2000/svg">
                 <g fill="none">
@@ -118,7 +120,7 @@
 
 
         <div class="aboutInfo">
-            <div class="personalInfo">
+            <div class="personalInfo" id="screen_bg_blur">
                 <center><font size = 5><br> My Hobbies: </br></font></center>
                 <br> I love spending time with friends and family</br>
                 <br> Big on philosophical conversations, seeing different perspectives. </br>
@@ -126,10 +128,14 @@
                 <br> Mostly, I love to code! </br>
             </div>
             
-            <div class="friendPic">
-                <img src="assets/images/PersonalPic.JPG" alt="personal pic">
-            </div>
+
         </div>
+
+        <div class="friendPic">
+            <img src="assets/images/PersonalPic.JPG" alt="personal pic">
+        </div>
+
+
 
         <script>
         // Get the id of the <path> element and the length of <path>
@@ -162,11 +168,20 @@
         </script>
 
     </div>
+    <script src="assets/scripts/about.js"></script>
 
-
-    <script src="assets/scripts/butter.js"></script>
-    <script src="assets/scripts/home.js"></script>
-
+    <script>
+        var prevScrollpos = window.pageYOffset;
+        window.onscroll = function() {
+            var currentScrollPos = window.pageYOffset;
+            if (prevScrollpos > currentScrollPos) {
+                document.getElementById("navbar").style.top = "0";
+            } else {
+                document.getElementById("navbar").style.top = "-50px";
+            }
+            prevScrollpos = currentScrollPos;
+        }
+    </script>
 
 </body>
 

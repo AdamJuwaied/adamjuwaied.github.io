@@ -18,12 +18,12 @@ body{
 
 #bm {
     content: "";
-    top: -39vh;
-    left: 0vw;
+    top: -26vh;
+    left: -14vw;
     position: absolute;
-    width: 100vw;
-    height: 179vh;
-    rotate: 180deg;
+    width: 104vw;
+    height: 126vh;
+    rotate: 360deg;
     z-index: -1;
 }
 
@@ -83,7 +83,7 @@ body{
     align-items: center;
     border-radius: 30px; 
     top: 75vh;
-    left: 20vw;
+    left: 40vw;
     min-width: 18%;
     text-align: center;
     color: #fff;
@@ -169,22 +169,11 @@ header{
     top: 0;
     left: 0;
     width: 100%;
-    padding: 25px 35px;
+    padding: 32px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 0;
-}
-
-.navbar-links{
-    background-color: transparent !important;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-attachment: fixed;
-    font-family: 'Roboto Mono', monospace;
-    
-
 }
 
 header ul{
@@ -223,14 +212,12 @@ section header nav div ul li a:active{
     background-color: transparent !important;
     color: rgb(183, 183, 183);
     text-decoration: none;
-    padding: 6px 45vw 10px 15px;
+    padding: 6px 5px 10px 15px;
     border-radius: 15px;
     font-style: normal;
     font-weight: bold;
     font-size: 19px;
     font-family: 'Roboto Mono', monospace;
-
-
 }
 
 .toggle-btn{
@@ -379,46 +366,21 @@ section header nav div ul li a:active{
 
     #bm{
         content: "";
-        top: -39vh;
+        top: -58vh;
+        left: 20vw;
         position: absolute;
-        width: 100vw;
-        height: 179vh;
+        width: 60vw;
+        height: 190vh;
         rotate: 90deg;
     }
 }
 
-/* @media screen and (min-width: 640px) {
+@media screen and (max-width: 640px) {
     .chat-btn{
-        top: 70vh;
-        left: 40vw;
+        top: 80vh;
+        left: 25vw;
     }
-
-    .containter{
-        top: 5vw;
-        width: 60vw;
-        height: 33vh;
-        left: 20vw;
-        font-size: 1.5rem;
-    }
-
-    #padding-right{
-        padding-right: 0px;
-    }
-
-    .sec{
-        padding: 10px 10px 20px 50px;
-    }
-
-    #welcome{
-        width: 50vw;
-        height: 60%;
-    }
-
-    #welcome path:nth-child(1){
-        stroke-dasharray: 0px;
-        stroke-dashoffset: 50px;
-    }
-} */
+}
 
 @media screen and (min-width: 1080px) {
 
