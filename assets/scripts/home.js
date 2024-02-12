@@ -30,3 +30,43 @@ try {
         console.log(e);
     }
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const hamburgerMenu = document.querySelector('.hamburgerMenu');
+    const overlay = document.querySelector('.overlay');
+    const container = document.querySelector('.container');
+    const chatBtn = document.querySelector('.chat-btn');
+    const navbarLinks = document.querySelector('.navbar-links');
+
+    console.log('Hamburger Menu:', hamburgerMenu);
+    console.log('Overlay:', overlay);
+    console.log('Container:', container);
+
+    if (hamburgerMenu && overlay && container && navbarLinks && chatBtn) {
+        function toggleOverlay() {
+            overlay.classList.toggle('active');
+            hamburgerMenu.classList.toggle('active');
+
+            // Toggle container visibility
+            if (hamburgerMenu.classList.contains('active')) {
+                container.classList.add('hide');
+                chatBtn.classList.toggle('hide');
+
+            } else {
+                container.classList.remove('hide');
+                chatBtn.classList.toggle('hide');
+
+            }
+
+            // Toggle navbar-links visibility
+            navbarLinks.classList.toggle('active');
+        }
+
+        hamburgerMenu.addEventListener('click', () => {
+            toggleOverlay();
+        });
+
+    } else {
+        console.error('Hamburger menu, overlay, container, or navbar-links not found');
+    }
+});

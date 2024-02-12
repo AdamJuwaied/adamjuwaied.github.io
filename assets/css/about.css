@@ -591,5 +591,12 @@ h3{
 .height-div{
   height: 500px; width: 100%; background:#eeeeee; 
 }
-.linewrap{display: inline-block;vertical-align: top;width: 100%;}
-.linewrap > div{float: left;width: 50%;}
+.linewrap{
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+.linewrap > div{
+  float: left;
+  width: 50%;
+}
