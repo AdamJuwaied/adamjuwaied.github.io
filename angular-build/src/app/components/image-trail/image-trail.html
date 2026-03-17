@@ -1,0 +1,7 @@
+<div class="image-trail-container" #trailContainer>
+  @for (url of items; track url; let i = $index) {
+    <div class="content__img">
+      <div class="content__img-inner" [style.backgroundImage]="'url(' + url + ')'"></div>
+    </div>
+  }
+</div>

@@ -1,0 +1,178 @@
+// WelcomeWordmark Component - Responsive Sizing & Animation
+// NO BACKGROUND - completely transparent container
+
+.welcome-wordmark-container {
+  // Mobile-first responsive sizing using clamp()
+  // Same rules for loader AND hero - ensures consistent positioning
+  width: clamp(240px, 65vw, 520px);
+  
+  // No background, no panel, fully transparent
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  background: none;
+  color: var(--stroke-color, #ffffff);
+  
+  // CRITICAL: Stable transform origin for in-place bounce
+  transform-origin: 50% 50%;
+  
+  // ===== ANIMATION PHASES =====
+  // Transforms applied ONLY to this container, not parent
+  
+  // Phase 1: Punch-in (scale to 120%)
+  &.phase-punch-in {
+    animation: punch-in 0.15s ease-out forwards;
+  }
+  
+  // Phase 2: Bounce (perspective toward viewer)
+  &.phase-bounce {
+    animation: perspective-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+  
+  // Phase 3: Settle at 100% (no size change from original)
+  &.phase-settle {
+    animation: settle 0.2s ease-out forwards;
+  }
+  
+  // Phase 4: Flash (maintains scale at 100%)
+  &.phase-flash {
+    transform: scale(1);
+  }
+  
+  // Phase 5: Done (final state at 100% - same as start)
+  &.phase-done {
+    transform: scale(1);
+  }
+  
+  // Show fill after completion - keep white outline visible
+  &.show-fill {
+    .letter-stroke {
+      opacity: 1;
+      transition: opacity 0.4s ease-out;
+    }
+    
+    .letter-fill {
+      opacity: 1;
+    }
+  }
+  
+  // Glow effect when enabled
+  &.show-glow .letter-stroke {
+    filter: drop-shadow(0 0 4px var(--stroke-glow, rgba(67, 128, 233, 0.5)));
+  }
+}
+
+.welcome-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  // No background rect or fill
+  background: none;
+}
+
+.letter-stroke {
+  // Smooth stroke animation
+  transition: stroke-dashoffset 0.05s linear, opacity 0.3s ease-out;
+  
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.letter-fill {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  
+  @media (prefers-reduced-motion: reduce) {
+    opacity: 1;
+  }
+}
+
+// ===== KEYFRAME ANIMATIONS =====
+
+// Phase 1: Quick punch-in to 120%
+@keyframes punch-in {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.2);
+  }
+}
+
+// Phase 2: Perspective bounce - toward viewer then back to 100%
+// Ends at scale(1) so there's NO size difference from start
+@keyframes perspective-bounce {
+  0% {
+    transform: scale(1.2) perspective(500px) translateZ(0) rotateX(0deg);
+  }
+  25% {
+    // Move "toward" viewer with slight tilt
+    transform: scale(1.12) perspective(500px) translateZ(40px) rotateX(-4deg);
+  }
+  50% {
+    // Bounce back past settle point
+    transform: scale(0.92) perspective(500px) translateZ(-15px) rotateX(2deg);
+  }
+  75% {
+    transform: scale(1.04) perspective(500px) translateZ(5px) rotateX(-1deg);
+  }
+  100% {
+    // End at scale(1) - same as starting size
+    transform: scale(1) perspective(500px) translateZ(0) rotateX(0deg);
+  }
+}
+
+// Phase 3: Final settle (subtle micro-bounce at 100%)
+@keyframes settle {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// ===== REDUCED MOTION =====
+@media (prefers-reduced-motion: reduce) {
+  .welcome-wordmark-container {
+    &.phase-punch-in,
+    &.phase-bounce,
+    &.phase-settle,
+    &.phase-flash,
+    &.phase-done {
+      animation: none;
+      transform: scale(1);
+    }
+    
+    &.show-fill {
+      .letter-stroke {
+        opacity: 0;
+      }
+      
+      .letter-fill {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+// ===== RESPONSIVE ADJUSTMENTS =====
+// Mobile-first base is already set above
+// Only add overrides for larger screens
+
+@media screen and (min-width: 768px) {
+  .welcome-wordmark-container {
+    width: clamp(320px, 55vw, 480px);
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .welcome-wordmark-container {
+    width: clamp(400px, 45vw, 560px);
+  }
+}

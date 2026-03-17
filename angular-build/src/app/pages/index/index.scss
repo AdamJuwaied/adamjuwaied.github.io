@@ -1,0 +1,213 @@
+// ===== PREMIUM HERO BACKGROUND =====
+// Dark indigo / purple / black with warm gold bloom,
+// faint Arabic "أدم" pattern, and glowing particles.
+//
+// Color palette:
+//   Near black:      #05030A
+//   Deep indigo:     #0A0B1F
+//   Purple base:     #2A1238
+//   Rich violet:     #4A245D
+//   Warm highlight:  #C98A5A
+//   Soft gold:       #D79A63
+//   Pattern purple:  rgba(140, 90, 160, 0.12)
+
+@import url('https://fonts.googleapis.com/css2?family=Amiri&display=swap');
+
+// ===== HOST =====
+:host {
+  display: block;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: #05030A;
+}
+
+// ===== HERO-BG: MAIN CONTAINER =====
+// All visual layers live here via background stack + pseudo-elements
+.hero-bg {
+  position: fixed;
+  inset: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  z-index: 0;
+
+  // ── LAYER 1: Base luxury gradient ──
+  background:
+    // Warm radial glow upper-right area (subtle)
+    radial-gradient(
+      circle at 75% 20%,
+      rgba(120, 70, 110, 0.25) 0%,
+      transparent 25%
+    ),
+    // Center haze — soft violet undertone
+    radial-gradient(
+      circle at 50% 45%,
+      rgba(70, 35, 95, 0.18) 0%,
+      transparent 35%
+    ),
+    // Main directional gradient: black → indigo → purple
+    linear-gradient(
+      90deg,
+      #05030A 0%,
+      #0A0B1F 25%,
+      #1A1030 55%,
+      #2A1238 78%,
+      #160C22 100%
+    );
+
+  // ── LAYER 2: Warm top-right bloom (::before) ──
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      // Primary warm bloom — diffused circle in upper-right
+      radial-gradient(
+        circle at 82% 12%,
+        rgba(201, 138, 90, 0.28) 0%,
+        rgba(201, 138, 90, 0.10) 18%,
+        transparent 42%
+      ),
+      // Secondary softer warm spill — wider, dimmer
+      radial-gradient(
+        circle at 75% 18%,
+        rgba(215, 154, 99, 0.12) 0%,
+        rgba(180, 120, 80, 0.06) 25%,
+        transparent 50%
+      ),
+      // Faint golden reflection on the right edge
+      radial-gradient(
+        circle at 95% 30%,
+        rgba(201, 138, 90, 0.08) 0%,
+        transparent 30%
+      );
+    filter: blur(40px);
+    // Slow breathing animation on the bloom
+    animation: bloom-breathe 10s ease-in-out infinite alternate;
+  }
+
+  // ── LAYER 6: Vignette + grain overlay (::after) ──
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    // Vignette — dark edges
+    background:
+      radial-gradient(
+        ellipse 80% 70% at 50% 50%,
+        transparent 30%,
+        rgba(5, 3, 10, 0.45) 65%,
+        rgba(5, 3, 10, 0.85) 100%
+      );
+    // Very subtle grain via repeating-conic-gradient
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -50%;
+      width: 200%;
+      height: 200%;
+      opacity: 0.06;
+      mix-blend-mode: soft-light;
+      background-image:
+        repeating-conic-gradient(
+          rgba(200, 180, 160, 0.15) 0% 25%,
+          transparent 0% 50%
+        );
+      background-size: 4px 4px;
+      animation: grain-drift 6s steps(8) infinite;
+    }
+  }
+}
+
+// ===== LAYER 4: ARABIC PATTERN =====
+// Faint repeated "أدم" across the entire page
+.arabic-pattern {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+
+  // CSS Grid to tile the Arabic text
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  row-gap: 35px;
+  column-gap: 10px;
+  padding: 20px;
+  align-content: start;
+
+  span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+    font-size: 34px;
+    color: rgba(140, 90, 160, 0.12);
+    filter: blur(0.3px);
+    line-height: 1;
+    white-space: nowrap;
+    // Default — overridden per-item in JS
+    opacity: 0.10;
+    transform: rotate(0deg);
+    transition: none;
+  }
+}
+
+// ===== LAYER 5: PARTICLES =====
+// Glowing gold/purple dots concentrated near the bottom
+.particles {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.particle {
+  position: absolute;
+  border-radius: 50%;
+  will-change: top, opacity;
+}
+
+// ===== ANIMATIONS =====
+
+// Bloom breathes slowly — subtle scale + opacity shift
+@keyframes bloom-breathe {
+  0% {
+    opacity: 0.85;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+// Grain noise drift
+@keyframes grain-drift {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-2%, -3%); }
+  20% { transform: translate(3%, 1%); }
+  30% { transform: translate(-1%, 4%); }
+  40% { transform: translate(4%, -2%); }
+  50% { transform: translate(-3%, 2%); }
+  60% { transform: translate(1%, -4%); }
+  70% { transform: translate(-4%, 3%); }
+  80% { transform: translate(2%, -1%); }
+  90% { transform: translate(-2%, 4%); }
+}
+
+// ===== REDUCED MOTION =====
+@media (prefers-reduced-motion: reduce) {
+  .hero-bg::before {
+    animation: none;
+  }
+  .hero-bg::after::before {
+    animation: none;
+  }
+}

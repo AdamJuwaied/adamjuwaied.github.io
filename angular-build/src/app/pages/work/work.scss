@@ -1,0 +1,327 @@
+$line-width: 5px;
+$line-color: #ffffff;
+$indent: 24px;       // desktop indent at each tree level
+$indent-m: 16px;     // mobile indent
+
+// Scroll-reactive gradient shared by every tree line.
+// background-attachment:fixed pins the gradient to the viewport so each
+// line segment—horizontal or vertical—shows the correct color for its
+// vertical position on screen.
+@mixin tree-line-bg {
+  background-color: $line-color;
+  background-image: linear-gradient(
+    to bottom,
+    #{$line-color} calc(var(--bandTopPx, -200px) - 15px),
+    var(--trailColor, #{$line-color}) var(--bandTopPx, -200px),
+    var(--leadColor, #{$line-color}) var(--bandBottomPx, -200px),
+    #{$line-color} calc(var(--bandBottomPx, -200px) + 15px)
+  );
+  background-attachment: fixed;
+}
+
+:host {
+  display: block;
+  position: relative;
+  min-height: 100vh;
+}
+
+.work-page {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 100px 40px 80px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+// Background balls canvas
+.work-bg-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+// Terminal header
+.terminal-header {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.25rem;
+  color: #e1e1e1;
+  margin-bottom: 40px;
+
+  .prompt {
+    color: #b7b7b7;
+  }
+
+  .command {
+    color: #ffffff;
+  }
+}
+
+// ─── Tree layout ───
+.tree {
+  position: relative;
+  padding-left: $indent;
+}
+
+// Main spine — single continuous vertical line
+.timeline-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: $line-width;
+  @include tree-line-bg;
+  pointer-events: none;
+  z-index: 1;
+
+  // Glow halo — subtle drop-shadow around the colored region
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    @include tree-line-bg;
+    filter: drop-shadow(0 0 4px rgba(67, 128, 233, 0.5));
+    opacity: var(--bandOpacity, 0);
+    will-change: opacity;
+  }
+}
+
+// Branch
+.tree-branch {
+  position: relative;
+  margin-bottom: 48px;
+
+  // Horizontal connector: from spine through to the sub-trunk position
+  &::before {
+    content: '';
+    position: absolute;
+    left: -$indent;
+    top: 12px;
+    width: calc(#{$indent} * 2 + #{$line-width});
+    height: $line-width;
+    @include tree-line-bg;
+  }
+
+  // Vertical bridge: connects horizontal connector down to .branch-items
+  // Runs from the horizontal connector (top: 12px) to the bottom of branch-label area
+  &::after {
+    content: '';
+    position: absolute;
+    left: $indent;
+    top: 12px;
+    bottom: 0;   // extends through the whole branch — .branch-items::before takes over visually
+    width: $line-width;
+    @include tree-line-bg;
+    z-index: 0;
+  }
+}
+
+// Wrapper around items
+.branch-items {
+  position: relative;
+  margin-left: $indent;
+}
+
+.branch-label {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.25rem;
+  color: #e1e1e1;
+  margin-bottom: 0;
+  padding-left: calc(#{$indent} + #{$line-width} + 8px);
+  position: relative;
+  z-index: 2;
+  // Height is fluid; the branch ::after sub-trunk handles the gap
+}
+
+// Tree item — positioned inside .branch-items
+.tree-item {
+  position: relative;
+  padding-left: $indent;
+  padding-top: 24px;  // spacing between items (replaces margin to keep sub-trunk continuous)
+
+  // Horizontal connector from sub-trunk to item header
+  &::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: calc(24px + 12px); // 24px padding + 12px into the header text
+    width: $indent;
+    height: $line-width;
+    @include tree-line-bg;
+  }
+
+  // First item: extra top padding to account for the branch label height
+  &:first-child {
+    padding-top: 24px;
+  }
+
+  // Last item: mask the sub-trunk below the horizontal connector
+  // so the tree terminates cleanly (└── style)
+  &:last-child::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: calc(24px + 12px + #{$line-width});
+    bottom: 0;
+    width: calc(#{$line-width} + 2px);
+    background: #1e1e1e;
+    z-index: 1;
+  }
+}
+
+.item-header {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.15rem;
+  color: #e1e1e1;
+  margin-bottom: 16px;
+}
+
+.item-content {
+  display: flex;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.item-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.bullet-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+
+  li {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.8rem;
+    color: #c0c0c0;
+    padding: 4px 0;
+    padding-left: 16px;
+    position: relative;
+
+    &::before {
+      content: '─';
+      position: absolute;
+      left: 0;
+      color: #e1e1e1;
+    }
+  }
+}
+
+.nasa-image {
+  width: 100%;
+  max-width: 350px;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  object-fit: cover;
+}
+
+.item-lottie {
+  width: 400px;
+  height: 400px;
+  flex-shrink: 0;
+}
+
+// ─── Image Trail Overlay (covers the Internship branch area) ───
+.internship-branch {
+  position: relative; // anchor for the overlay
+}
+
+.image-trail-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 100vw;          // extend activation area to viewport edge on the right
+  z-index: 10;
+  overflow: visible;     // images render beyond the edges, activation zone stays bounded
+  pointer-events: auto;
+}
+
+// ─── Tablet ───
+@media screen and (max-width: 768px) {
+  .work-page {
+    padding: 90px 24px 60px;
+  }
+
+  .item-content {
+    flex-direction: column;
+  }
+
+  .item-lottie {
+    width: 320px;
+    height: 320px;
+    align-self: center;
+  }
+
+  .item-details video {
+    max-width: 100%;
+  }
+}
+
+// ─── Mobile ───
+@media screen and (max-width: 540px) {
+  .work-page {
+    padding: 80px 16px 40px;
+  }
+
+  .terminal-header {
+    font-size: 1rem;
+    margin-bottom: 24px;
+  }
+
+  .tree {
+    padding-left: $indent-m;
+  }
+
+  .tree-branch {
+    &::before {
+      width: calc(#{$indent-m} * 2 + #{$line-width});
+      left: -$indent-m;
+    }
+    &::after {
+      left: $indent-m;
+    }
+  }
+
+  .branch-label {
+    font-size: 1.05rem;
+    padding-left: calc(#{$indent-m} + #{$line-width} + 8px);
+  }
+
+  .branch-items {
+    margin-left: $indent-m;
+  }
+
+  .tree-item {
+    padding-left: $indent-m;
+
+    &::after {
+      width: $indent-m;
+    }
+  }
+
+  .item-header {
+    font-size: 1rem;
+  }
+
+  .item-content {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .item-lottie {
+    width: 280px;
+    height: 280px;
+    align-self: center;
+  }
+
+  .bullet-list li {
+    font-size: 0.75rem;
+  }
+}

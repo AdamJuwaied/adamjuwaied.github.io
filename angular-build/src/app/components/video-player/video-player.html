@@ -1,0 +1,19 @@
+<!-- The video IS the thumbnail. preload="metadata" loads just enough for a frame. -->
+<div class="vp-wrapper" [class.playing]="isPlaying">
+  <video
+    #videoEl
+    [src]="src"
+    preload="metadata"
+    playsinline
+    (ended)="onEnded()"
+    [class.ready]="thumbnailReady"
+  ></video>
+
+  <!-- Big play button — disappears while playing -->
+  <button *ngIf="!isPlaying" class="vp-play" (click)="play()" [attr.aria-label]="'Play ' + title">
+    <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="23" fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
+      <polygon points="19,15 19,33 35,24" fill="#fff"/>
+    </svg>
+  </button>
+</div>

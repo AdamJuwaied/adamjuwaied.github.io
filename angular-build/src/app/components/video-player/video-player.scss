@@ -1,0 +1,76 @@
+// ─── Video Player Wrapper ───
+.vp-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #111;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+
+  &.playing {
+    cursor: default;
+  }
+}
+
+video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #111;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+
+  &.ready {
+    opacity: 1;
+  }
+}
+
+// When playing, let the browser controls handle aspect ratio
+.vp-wrapper.playing video {
+  object-fit: contain;
+}
+
+// ─── Play Button ───
+.vp-play {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.2s ease;
+
+  &:hover svg circle {
+    fill: rgba(0, 0, 0, 0.65);
+  }
+
+  svg {
+    width: 64px;
+    height: 64px;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
+    transition: transform 0.2s ease;
+  }
+
+  &:hover svg {
+    transform: scale(1.08);
+  }
+}
+
+// ─── Responsive ───
+@media screen and (max-width: 768px) {
+  .vp-wrapper {
+    max-width: 100%;
+  }
+
+  .vp-play svg {
+    width: 52px;
+    height: 52px;
+  }
+}

@@ -1,0 +1,10 @@
+// Header component styles
+
+:host {
+  display: block;
+}
+
+// Global header styles - transitions for loading state changes
+header, nav, .navbar {
+  transition: opacity 0.4s ease-out;
+}

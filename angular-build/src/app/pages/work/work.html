@@ -1,0 +1,90 @@
+<canvas #bgCanvas class="work-bg-canvas"></canvas>
+<div class="work-page">
+  <!-- Terminal Header -->
+  <div class="terminal-header">
+    <span class="prompt">C:\Work&gt;</span><span class="command">Tree</span>
+  </div>
+
+  <!-- Tree Structure -->
+  <div class="tree" #treeContainer>
+    <!-- Single continuous spine -->
+    <div class="timeline-spine" #timelineSpine></div>
+
+    <!-- Research Branch -->
+    <div class="tree-branch">
+      <div class="branch-label">.Research</div>
+
+      <div class="branch-items">
+        <!-- Augmented Reality -->
+        <div class="tree-item">
+          <div class="item-header">.Augmented Reality</div>
+          <div class="item-content">
+            <div class="item-details">
+              <app-video-player
+                src="images/ARVideo.mp4"
+                title="Watch Demo"
+              ></app-video-player>
+              <ul class="bullet-list">
+                <li>Created Multiplayer Platform</li>
+                <li>Optimized existing code by 12%</li>
+                <li>Maintained Organization / Clean Code</li>
+                <li>Great Communication Skills</li>
+                <li>Agile Environment</li>
+              </ul>
+            </div>
+            <div class="item-lottie" id="augmented"></div>
+          </div>
+        </div>
+
+        <!-- Synthetic Data -->
+        <div class="tree-item">
+          <div class="item-header">.Synthetic Data</div>
+          <div class="item-content">
+            <div class="item-details">
+              <app-video-player
+                src="images/SyntheticData.mp4"
+                title="Watch Demo"
+              ></app-video-player>
+              <ul class="bullet-list">
+                <li>High Quality Software</li>
+                <li>Created Synthetic Data For ML</li>
+                <li>Presented to Ivy League Universities</li>
+              </ul>
+            </div>
+            <div class="item-lottie" id="coding"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Internship Branch -->
+    <div class="tree-branch internship-branch">
+      <div class="branch-label">.Internship</div>
+
+      <div class="branch-items">
+        <!-- NASA -->
+        <div class="tree-item">
+          <div class="item-header">.NASA</div>
+          <div class="item-content">
+            <div class="item-details">
+              <img src="images/SpacePic.jpg" alt="NASA Weather Balloon" class="nasa-image" />
+              <ul class="bullet-list">
+                <li>Sole Coder for Python and SQL</li>
+                <li>Won Second Place in our First Year!</li>
+                <li>80,000 ft. in Altitude</li>
+                <li>Completed in Timely Fashion</li>
+              </ul>
+            </div>
+            <div class="item-lottie" id="balloon"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Image trail overlay covering the Internship area -->
+      <div class="image-trail-overlay">
+        <app-image-trail [items]="spacePicItems"></app-image-trail>
+      </div>
+    </div>
+
+  </div>
+</div>

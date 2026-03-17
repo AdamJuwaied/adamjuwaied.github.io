@@ -1,0 +1,94 @@
+:host {
+  display: block;
+}
+
+:root {
+  --fluid-min-width: 320;
+  --fluid-max-width: 1920;
+  --fluid-screen: 100vw;
+  --fluid-bp: calc((var(--fluid-screen) - var(--fluid-min-width) / 16 * 1rem) / (var(--fluid-max-width) - var(--fluid-min-width)));
+}
+
+.container {
+  width: 75vw;
+  height: 25vh;
+  background-color: #141414;
+  position: relative;
+  left: 50vw;
+  top: 40vh;
+  transform: translate(-50%, -50%);
+  border-radius: 30px;
+  opacity: .75;
+  backdrop-filter: blur(5px);
+}
+
+.information {
+  position: absolute;
+  top: 39%;
+  left: 60%;
+  transform: translate(-50%, -50%);
+}
+
+#screen_bg_blur {
+  left: 50vw;
+  top: 36vh;
+  width: 75vw;
+  height: 75vh;
+  transform: translate(-50%, -50%);
+  padding: 1rem;
+  border-radius: 30px;
+  background-color: #141414a7;
+  -webkit-backdrop-filter: blur(20px);
+  -o-backdrop-filter: blur(20px);
+  -moz-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  z-index: 20;
+}
+
+.form__input {
+  width: 80vw;
+  height: 13vh;
+  border: none;
+  border-radius: 1rem;
+  font-size: 1rem;
+  background: none;
+  font-family: inherit;
+  left: 50%;
+  padding-top: 50px;
+  top: 40%;
+}
+
+#name,
+#email,
+#subject {
+  width: 80%;
+  height: 7vh;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 2rem;
+  border-radius: 20px;
+  border: none;
+  background-color: #000000;
+  color: #e1e1e1;
+  padding-left: 12px;
+  overflow-wrap: break-word;
+}
+
+#Message {
+  top: 65%;
+  width: 80%;
+  height: 12vh;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 2rem;
+  border-radius: 20px;
+  border: none;
+  background-color: #000000;
+  color: #e1e1e1;
+  padding-left: 12px;
+  overflow-wrap: break-word;
+}
+
+[type="submit"] {
+  width: 80%;
+  height: 10vh;
+  transform: translate(-62%, -120%);
+}

@@ -1,0 +1,238 @@
+:host {
+  display: block;
+  overflow-y: auto;
+  height: 100vh;
+}
+
+@property --rotate {
+  syntax: "<angle>";
+  initial-value: 132deg;
+  inherits: false;
+}
+
+:root {
+  --card-height: 65vh;
+  --card-width: calc(var(--card-height) / 1.5);
+  --black: #1e1e1e;
+}
+
+.card {
+  background: var(--black);
+  max-width: 300px;
+  max-height: 300px;
+  padding: 3px;
+  position: absolute;
+  border-radius: 300px;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  font-size: 1.5em;
+  color: rgb(88 199 250 / 0%);
+  font-family: cursive;
+  top: 35vh;
+  left: 10vw;
+  z-index: 2;
+}
+
+.card img {
+  position: relative;
+  top: 1px;
+  width: 100%;
+  height: 100%;
+  border-radius: 300px;
+  align-items: center;
+  z-index: 2;
+  border: 5px solid #191c29;
+}
+
+.card::before {
+  content: "";
+  height: calc(100%);
+  width: calc(100%);
+  border-radius: 300px;
+  background-image: linear-gradient(var(--rotate), #5ddcff, #3c67e3 43%, #4e00c2);
+  padding: 4px;
+  position: relative;
+  border-radius: 300px;
+  align-items: center;
+  position: absolute;
+  z-index: 2;
+  top: -2%;
+  left: -1.25%;
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    --rotate: 0deg;
+  }
+  100% {
+    --rotate: 360deg;
+  }
+}
+
+#bm {
+  content: "" !important;
+  top: -58vh !important;
+  left: 0vw !important;
+  position: absolute !important;
+  width: 99vw !important;
+  height: 333vh !important;
+  rotate: 180deg !important;
+  z-index: -10 !important;
+}
+
+#arrows {
+  position: absolute;
+  top: 60vh;
+  left: 50vw;
+  transform: translate(-56.35%, -35%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 2;
+}
+
+h2 {
+  font-size: 2.15rem;
+  margin-bottom: 0px;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+  position: absolute;
+  z-index: 2;
+}
+
+h3 {
+  margin-top: 80px;
+  position: absolute;
+  font-size: 2rem;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+  z-index: 2;
+}
+
+.svgload {
+  position: absolute;
+  width: 0px;
+  height: 0px;
+  top: 100px;
+}
+
+.introText {
+  position: absolute;
+  top: 50vh;
+  left: 80vw;
+  width: 30vw;
+  height: 25vh;
+}
+
+.aboutInfo {
+  position: absolute;
+  width: 105%;
+  height: 34vh;
+  top: 340px;
+  z-index: -3;
+}
+
+.personalInfo {
+  transform: translate(90%, -50%);
+  position: absolute;
+  z-index: 1;
+  color: rgb(183, 183, 183);
+  font-family: 'Roboto Mono', monospace;
+  font-size: .75rem;
+}
+
+.personalInfo br {
+  display: block;
+  content: "";
+  margin-top: 50px;
+}
+
+.hobbies-title {
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.friendPic {
+  content: "";
+  width: 100vw;
+  top: 185vh;
+  height: 35vh;
+  left: 50vw;
+  padding-left: 50vw;
+  padding-top: 55vh;
+}
+
+.friendPic img {
+  top: 50vh;
+  width: 100%;
+}
+
+.linewrap {
+  display: inline-block;
+  vertical-align: top;
+  width: 100%;
+}
+
+.linewrap > div {
+  float: left;
+  width: 50%;
+}
+
+@media screen and (max-width: 768px) {
+  .svgload {
+    max-width: 102vw;
+    width: 103vw;
+    left: 50px;
+  }
+
+  .card {
+    top: 35vh;
+    left: 15vw;
+  }
+
+  .introText {
+    position: absolute;
+    top: 22vh;
+    left: 50vw;
+    width: 73vw;
+    height: 17vh;
+  }
+
+  .linewrap {
+    width: 75%;
+  }
+
+  .friendPic {
+    width: 71vw;
+    height: 90vh;
+    padding-left: 25vw;
+    padding-top: 92vh;
+  }
+
+  .aboutInfo {
+    width: 90%;
+    height: 50vh;
+    top: 2421px;
+    left: 50vw;
+  }
+}
+
+@media screen and (min-width: 1080px) {
+  .svgload {
+    width: 100vw;
+    height: 250vh;
+    top: 50px;
+  }
+}
+
+@media screen and (min-width: 1366px) {
+  .svgload {
+    width: 100vw;
+    height: 250vh;
+    top: 160px;
+  }
+}

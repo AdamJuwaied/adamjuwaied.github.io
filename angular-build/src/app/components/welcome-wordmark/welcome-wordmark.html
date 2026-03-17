@@ -1,0 +1,52 @@
+<div 
+  class="welcome-wordmark-container"
+  [class.phase-punch-in]="animationPhase === 'punch-in'"
+  [class.phase-bounce]="animationPhase === 'bounce'"
+  [class.phase-settle]="animationPhase === 'settle'"
+  [class.phase-flash]="animationPhase === 'flash'"
+  [class.phase-done]="animationPhase === 'done'"
+  [class.show-fill]="showFill"
+  [class.show-glow]="showGlow"
+  [attr.aria-label]="'Welcome'"
+  role="img"
+>
+  <svg 
+    class="welcome-svg"
+    viewBox="0 0 450 90"
+    preserveAspectRatio="xMidYMid meet"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <!-- Gradient fill definition -->
+    <defs>
+      <linearGradient id="welcomeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="var(--gradient-start, #4380E9)" />
+        <stop offset="100%" stop-color="var(--gradient-end, #4E00C2)" />
+      </linearGradient>
+    </defs>
+
+    <!-- For each letter, render stroke path with outline animation -->
+    @for (path of welcomePaths; track $index) {
+      <!-- Stroke outline that animates in -->
+      <path
+        #letterPath
+        class="letter-stroke"
+        [attr.d]="path"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        [style.stroke-dasharray]="getDashArray($index)"
+        [style.stroke-dashoffset]="getDashOffset($index)"
+      />
+
+      <!-- Fill layer (appears after completion) -->
+      <path
+        class="letter-fill"
+        [attr.d]="path"
+        fill="url(#welcomeGradient)"
+        stroke="none"
+      />
+    }
+  </svg>
+</div>
