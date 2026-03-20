@@ -1,11 +1,80 @@
-import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, HostListener, Inject, PLATFORM_ID, signal } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs/operators';
 import { Header } from './components/header/header';
+import { LightRays } from './components/light-rays/light-rays';
+import { DustParticles } from './components/dust-particles/dust-particles';
+
+interface PatternItem {
+  leftPx: number;
+  topPx: number;
+  widthPx: number;
+  heightPx: number;
+  opacity: number;
+  rotationDeg: number;
+}
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header],
+  imports: [RouterOutlet, Header, LightRays, DustParticles],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
-export class App {}
+export class App {
+  protected readonly patternItems = signal<PatternItem[]>([]);
+  protected readonly isHomePage = signal(true);
+
+  private readonly isBrowser: boolean;
+
+  constructor(@Inject(PLATFORM_ID) platformId: Object, private router: Router) {
+    this.isBrowser = isPlatformBrowser(platformId);
+
+    if (this.isBrowser) {
+      this.updatePatternGrid();
+    }
+
+    this.router.events
+      .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+      .subscribe((e) => {
+        this.isHomePage.set(e.urlAfterRedirects === '/' || e.urlAfterRedirects === '');
+      });
+  }
+
+  @HostListener('window:resize')
+  protected updatePatternGrid(): void {
+    if (!this.isBrowser) {
+      return;
+    }
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const tileHeight = Math.max(48, Math.min(viewportWidth * 0.048, 64));
+    const tileWidth = tileHeight * 1.28;
+    const stepX = tileWidth * 1.52;
+    const stepY = tileHeight * 1.34;
+    const columns = Math.ceil((viewportWidth + stepX) / stepX) + 1;
+    const rows = Math.ceil((viewportHeight + stepY) / stepY) + 1;
+    const patternItems: PatternItem[] = [];
+
+    for (let row = 0; row < rows; row++) {
+      const rowOffset = row % 2 === 0 ? 0 : stepX * 0.48;
+
+      for (let column = -1; column < columns; column++) {
+        const index = row * columns + column + 1;
+        const rotationCycle = [-8, -4, 3, 7, 1, -6, 5];
+
+        patternItems.push({
+          leftPx: column * stepX + rowOffset - tileWidth * 0.16,
+          topPx: row * stepY - tileHeight * 0.14,
+          widthPx: tileWidth,
+          heightPx: tileHeight,
+          opacity: [0.18, 0.11, 0.15, 0.09, 0.13][index % 5],
+          rotationDeg: rotationCycle[index % rotationCycle.length],
+        });
+      }
+    }
+
+    this.patternItems.set(patternItems);
+  }
+}
