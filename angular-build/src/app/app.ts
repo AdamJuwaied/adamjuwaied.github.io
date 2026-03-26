@@ -24,6 +24,7 @@ interface PatternItem {
 export class App {
   protected readonly patternItems = signal<PatternItem[]>([]);
   protected readonly isHomePage = signal(true);
+  protected readonly isContactPage = signal(false);
 
   private readonly isBrowser: boolean;
 
@@ -38,6 +39,7 @@ export class App {
       .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
       .subscribe((e) => {
         this.isHomePage.set(e.urlAfterRedirects === '/' || e.urlAfterRedirects === '');
+        this.isContactPage.set(e.urlAfterRedirects === '/contact');
       });
   }
 
@@ -69,7 +71,7 @@ export class App {
           topPx: row * stepY - tileHeight * 0.14,
           widthPx: tileWidth,
           heightPx: tileHeight,
-          opacity: [0.18, 0.11, 0.15, 0.09, 0.13][index % 5],
+          opacity: [0.14, 0.09, 0.12, 0.07, 0.10][index % 5],
           rotationDeg: rotationCycle[index % rotationCycle.length],
         });
       }

@@ -1,6 +1,30 @@
 /* Global Styles */
 @import url('https://fonts.googleapis.com/css?family=Roboto:400,500,600,700,800,900&display=swap');
 
+/* ===== CUSTOM FONT FACES ===== */
+
+@font-face {
+  font-family: 'Qomariah Arabic';
+  src: url('/fonts/Qomariah Arabic.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+
+/* ===== SWITCHABLE FONT =====
+ * To test different fonts, change the --active-font value below.
+ * Options:
+ *   1. 'Qomariah Arabic'
+ *   2. 'Roboto Mono', monospace   (original)
+ */
+:root {
+  --active-font: 'Qomariah Arabic';
+  --gold: rgba(212, 165, 90, 0.85);
+  --gold-hover: #e8c07a;
+  --gold-shadow: rgba(212, 146, 62, 0.35);
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -12,7 +36,7 @@ html, body {
 }
 
 body {
-  background-color: #1e1e1e;
+  background-color: #1a061c;
   overflow-x: hidden;
   -webkit-user-select: none;
   -moz-user-select: none;
@@ -53,7 +77,7 @@ body.page-loading app-header nav {
   z-index: 5;
   border: 0;
   outline: 0;
-  font-family: 'Roboto Mono', monospace;
+  font-family: var(--active-font), 'Roboto Mono', monospace;
   cursor: pointer;
 }
 
@@ -76,10 +100,10 @@ body.page-loading app-header nav {
   text-decoration: none;
   font-family: 'Roboto Mono', monospace;
   box-sizing: border-box;
-  background: linear-gradient(90deg, #3c67e3, #4e00c2, #5ddcff, #3c67e3);
+  background: linear-gradient(90deg, #d4923e, #b87a34, #e8c07a, #d4923e);
   background-size: 400%;
   border-radius: 15px;
-  border: 3px solid #fff;
+  border: 3px solid rgba(212, 165, 90, 0.5);
   cursor: pointer;
   z-index: 10;
 }
@@ -96,7 +120,7 @@ body.page-loading app-header nav {
   bottom: -5px;
   right: -5px;
   z-index: -1;
-  background: linear-gradient(90deg, #3c67e3, #4e00c2, #5ddcff, #3c67e3);
+  background: linear-gradient(90deg, #d4923e, #b87a34, #e8c07a, #d4923e);
   background-size: 400%;
   border-radius: 40px;
   opacity: 0;
@@ -116,7 +140,7 @@ section {
   background-attachment: fixed;
 }
 
-canvas {
+canvas:not([data-dust]) {
   position: absolute;
   top: 0;
   left: 0;
@@ -153,37 +177,41 @@ header ul li {
 }
 
 header ul li a {
-  color: #ffffff; // White for blend mode (appears gray on dark bg)
-  mix-blend-mode: difference;
+  color: var(--gold);
   text-decoration: none;
   padding: 6px 15px;
   border-radius: 15px;
   font-style: normal;
   font-weight: bold;
-  font-size: 19px;
-  font-family: 'Roboto Mono', monospace;
+  font-size: 2rem;
+  font-family: var(--active-font), 'Roboto Mono', monospace;
+  transition: color 0.3s ease, text-shadow 0.3s ease, background-color 0.3s ease;
 }
 
 header ul li a:hover,
 section header nav div ul li a:active {
-  color: rgb(0, 0, 0);
-  background-color: rgb(183, 183, 183);
-  mix-blend-mode: normal; // Reset blend mode on hover for solid background
+  color: var(--gold-hover);
+  text-shadow: 0 0 12px var(--gold-shadow);
+  background-color: transparent;
   z-index: 0;
-  transition: .75s;
 }
 
 .logo {
   background-color: transparent !important;
-  color: #ffffff; // White for blend mode (appears gray on dark bg)
-  mix-blend-mode: difference;
+  color: var(--gold);
   text-decoration: none;
   padding: 6px 5px 10px 15px;
   border-radius: 15px;
   font-style: normal;
   font-weight: bold;
-  font-size: 19px;
-  font-family: 'Roboto Mono', monospace;
+  font-size: 2rem;
+  font-family: var(--active-font), 'Roboto Mono', monospace;
+  transition: color 0.3s ease, text-shadow 0.3s ease;
+
+  &:hover {
+    color: var(--gold-hover);
+    text-shadow: 0 0 12px var(--gold-shadow);
+  }
 }
 
 .container {
@@ -300,7 +328,7 @@ section header nav div ul li a:active {
   right: 0;
   bottom: 0;
   left: 0;
-  background-color: rgba(0, 0, 0, 0.85);
+  background-color: rgba(26, 6, 28, 0.97);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   z-index: 998; // Below hamburger (1000) and navbar-links (999)
@@ -320,7 +348,7 @@ section header nav div ul li a:active {
   transform: translate(-50%, -50%);
   padding: 1rem;
   border-radius: 30px;
-  background-color: #141414a7;
+  background-color: rgba(26, 6, 28, 0.65);
   -webkit-backdrop-filter: blur(20px);
   -o-backdrop-filter: blur(20px);
   -moz-backdrop-filter: blur(20px);
@@ -453,13 +481,15 @@ section header nav div ul li a:active {
   .navbar-links ul li a {
     font-size: 1.5rem;
     font-weight: 500;
-    color: #ffffff !important;
+    color: var(--gold) !important;
     text-decoration: none;
-    transition: color 0.2s ease;
-    mix-blend-mode: normal !important; // Override the difference blend mode
+    font-family: var(--active-font), 'Roboto Mono', monospace;
+    transition: color 0.3s ease, text-shadow 0.3s ease;
+    mix-blend-mode: normal !important;
     
     &:hover, &.active {
-      color: #5ddcff !important;
+      color: var(--gold-hover) !important;
+      text-shadow: 0 0 12px var(--gold-shadow);
     }
   }
 }
