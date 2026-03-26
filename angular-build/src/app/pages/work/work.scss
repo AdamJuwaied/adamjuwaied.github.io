@@ -1,5 +1,5 @@
 $line-width: 5px;
-$line-color: #ffffff;
+$line-color: #c9a55a;
 $indent: 24px;       // desktop indent at each tree level
 $indent-m: 16px;     // mobile indent
 
@@ -49,15 +49,15 @@ $indent-m: 16px;     // mobile indent
 .terminal-header {
   font-family: 'Roboto Mono', monospace;
   font-size: 1.25rem;
-  color: #e1e1e1;
+  color: #e8dcc8;
   margin-bottom: 40px;
 
   .prompt {
-    color: #b7b7b7;
+    color: #9e824e;
   }
 
   .command {
-    color: #ffffff;
+    color: var(--gold);
   }
 }
 
@@ -84,7 +84,7 @@ $indent-m: 16px;     // mobile indent
     position: absolute;
     inset: 0;
     @include tree-line-bg;
-    filter: drop-shadow(0 0 4px rgba(67, 128, 233, 0.5));
+    filter: drop-shadow(0 0 4px rgba(212, 165, 90, 0.5));
     opacity: var(--bandOpacity, 0);
     will-change: opacity;
   }
@@ -129,7 +129,7 @@ $indent-m: 16px;     // mobile indent
 .branch-label {
   font-family: 'Roboto Mono', monospace;
   font-size: 1.25rem;
-  color: #e1e1e1;
+  color: #e8c07a;
   margin-bottom: 0;
   padding-left: calc(#{$indent} + #{$line-width} + 8px);
   position: relative;
@@ -168,7 +168,7 @@ $indent-m: 16px;     // mobile indent
     top: calc(24px + 12px + #{$line-width});
     bottom: 0;
     width: calc(#{$line-width} + 2px);
-    background: #1e1e1e;
+    background: #1e0a20;
     z-index: 1;
   }
 }
@@ -176,7 +176,7 @@ $indent-m: 16px;     // mobile indent
 .item-header {
   font-family: 'Roboto Mono', monospace;
   font-size: 1.15rem;
-  color: #e1e1e1;
+  color: #d4a55a;
   margin-bottom: 16px;
 }
 
@@ -199,7 +199,7 @@ $indent-m: 16px;     // mobile indent
   li {
     font-family: 'Roboto Mono', monospace;
     font-size: 0.8rem;
-    color: #c0c0c0;
+    color: #b8a89a;
     padding: 4px 0;
     padding-left: 16px;
     position: relative;
@@ -208,7 +208,7 @@ $indent-m: 16px;     // mobile indent
       content: '─';
       position: absolute;
       left: 0;
-      color: #e1e1e1;
+      color: #c9a55a;
     }
   }
 }
@@ -219,6 +219,7 @@ $indent-m: 16px;     // mobile indent
   border-radius: 12px;
   margin-bottom: 12px;
   object-fit: cover;
+  border: 1px solid rgba(212, 165, 90, 0.15);
 }
 
 .item-lottie {

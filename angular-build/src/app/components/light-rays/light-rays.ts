@@ -119,7 +119,7 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
   vec4 rays2 = vec4(1.0) *
     rayStrength(rayPos, finalRayDir, coord, 22.3991, 18.0234, 1.1 * raysSpeed);
 
-  fragColor = rays1 * 0.5 + rays2 * 0.4;
+  fragColor = rays1 * 0.82 + rays2 * 0.65;
 
   if (noiseAmount > 0.0) {
     float n = noise(coord * 0.01 + iTime * 0.1);
@@ -158,6 +158,7 @@ void main() {
       pointer-events: none;
       z-index: 1;
       overflow: hidden;
+      mix-blend-mode: screen;
     }
     .light-rays-container {
       width: 100%;

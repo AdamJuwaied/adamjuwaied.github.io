@@ -14,14 +14,29 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 2;
+  z-index: 10;
   width: 100%;
-  max-width: 580px;
+  max-width: 300px;
   padding: 0 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
   pointer-events: none;
+}
+
+.index-page__logo-img-shadow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-53%, -46%);
+  z-index: 1;
+  width: 160%;
+  height: auto;
+  max-width: 600px;
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .index-page__logo-img {

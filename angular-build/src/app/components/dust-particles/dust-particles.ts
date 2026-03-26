@@ -1,4 +1,4 @@
-import {
+﻿import {
   Component,
   ElementRef,
   Inject,
@@ -9,32 +9,18 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
-interface Particle {
-  x: number;
-  y: number;
-  // Anchor — where the particle "belongs" (its home position)
-  ax: number;
-  ay: number;
-  // Velocity from mouse displacement
-  vx: number;
-  vy: number;
-  size: number;
-  opacity: number;
-  baseOpacity: number;
-  color: string;
-  flickerSpeed: number;
-  flickerPhase: number;
-  layer: 'far' | 'mid' | 'near';
-  // For flowing particles: position on bezier (0→1)
-  t: number;
-  speed: number;
-  // Perpendicular scatter offset (fixed per particle)
-  scatter: number;
-  // Return-to-anchor smoothness (0–1, higher = faster return)
-  returnRate: number;
-  // Is this a "settled" bottom particle or a "flowing" stream particle?
-  kind: 'settled' | 'flow';
+// -- SoA (Structure of Arrays) particle storage --
+// Contiguous Float32Arrays for hot-path fields -> cache-friendly, zero GC.
+const enum F {
+  X, Y, AX, AY, VX, VY,
+  SIZE, OPACITY, BASE_OPACITY,
+  FLICKER_SPEED, FLICKER_PHASE,
+  T, SPEED, SCATTER, RETURN_RATE,
+  DEPTH,
+  _COUNT,
 }
+const enum LAYER { FAR = 0, MID = 1, NEAR = 2 }
+const enum KIND { SETTLED = 0, FLOW = 1 }
 
 const GOLD_PALETTE = [
   '#d4a04a', '#c9873b', '#db9443', '#e8a94f',
@@ -45,7 +31,7 @@ const GOLD_PALETTE = [
 @Component({
   selector: 'app-dust-particles',
   standalone: true,
-  template: `<canvas #canvas class="dust-canvas"></canvas>`,
+  template: `<canvas #vignetteCanvas class="vig"></canvas><canvas #canvas data-dust class="dust"></canvas>`,
   styles: [`
     :host {
       display: block;
@@ -54,28 +40,66 @@ const GOLD_PALETTE = [
       z-index: 2;
       pointer-events: none;
     }
-    .dust-canvas {
+    .vig {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       display: block;
-      pointer-events: auto;
-      cursor: default;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+    }
+    .dust {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      pointer-events: none;
+      mix-blend-mode: screen;
+      z-index: auto;
     }
   `],
 })
 export class DustParticles implements OnInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
+  @ViewChild('vignetteCanvas', { static: true }) vigCanvasRef!: ElementRef<HTMLCanvasElement>;
 
   private isBrowser: boolean;
   private ctx!: CanvasRenderingContext2D;
-  private particles: Particle[] = [];
+  private vigCtx!: CanvasRenderingContext2D;
+  private reliefCanvas!: HTMLCanvasElement;
+  private reliefCtx!: CanvasRenderingContext2D;
+  private readonly RELIEF_SCALE = 0.25;
+
+  // -- SoA particle data --
+  private pFloat!: Float32Array;   // F._COUNT floats per particle
+  private pLayer!: Uint8Array;     // LAYER enum
+  private pKind!: Uint8Array;      // KIND enum
+  private pColor!: Uint8Array;     // index into GOLD_PALETTE
+  private pCount = 0;
+
+  // Layer bucket indices (pre-sorted, rebuilt only on particle creation)
+  private farIdx!: Uint16Array;
+  private midIdx!: Uint16Array;
+  private nearIdx!: Uint16Array;
+  private farCount = 0;
+  private midCount = 0;
+  private nearCount = 0;
+
+  // Pre-rendered particle stamp canvases (per color x 3 tiers)
+  // Eliminates createRadialGradient per particle per frame
+  private stamps!: HTMLCanvasElement[][]; // [colorIdx][tier 0|1|2]
+  private readonly STAMP_SIZES = [8, 16, 32, 48]; // px for tiers: fine, medium, large, bokeh
+
   private animationId: number | null = null;
   private dpr = 1;
   private width = 0;
   private height = 0;
   private time = 0;
+  private frameCount = 0;
 
-  // Mouse state
+  // Mouse
   private mouseX = -9999;
   private mouseY = -9999;
   private prevMouseX = -9999;
@@ -85,34 +109,52 @@ export class DustParticles implements OnInit, OnDestroy {
   private mouseActive = false;
   private mouseLastMoveTime = 0;
 
-  // LiquidEther-style parameters
-  private readonly CURSOR_SIZE = 100;    // cursorSize
-  private readonly MOUSE_FORCE = 25;     // mouseForce
-  private readonly VISCOSITY = 30;       // viscous — thick, syrupy resistance
-  // Derived: viscous damping per frame (higher viscosity = particles coast longer)
-  private readonly VISCOUS_DAMPING = 1 - (1 / (1 + this.VISCOSITY * 0.12)); // ~0.78
+  // -- Stable Fluids grid --
+  private readonly FLUID_N = 48;
+  private readonly FLUID_DT = 0.016;
+  private readonly FLUID_VISC = 30;
+  private readonly FLUID_FORCE = 0.08;
+  private readonly FLUID_CURSOR_PX = 28;
+  private fluidVx!: Float32Array;
+  private fluidVy!: Float32Array;
+  private fluidVx0!: Float32Array;
+  private fluidVy0!: Float32Array;
 
-  // LiquidEther visual trail — recent mouse positions for the fluid glow
-  private trail: { x: number; y: number; age: number; vx: number; vy: number }[] = [];
-  private readonly TRAIL_MAX_LENGTH = 24;
-  private readonly ETHER_OPACITY = 0.06; // low opacity — subtle viscous glow
+  // Invisible mouse radius — smoothed position for vignette brightening
+  private cursorSmoothedX = -9999;
+  private cursorSmoothedY = -9999;
+  private readonly CURSOR_RADIUS = 220;   // px radius of vignette-brighten area
+  private cursorStrength = 0;              // 0→1 animated presence
 
-  private boundResize = this.onResize.bind(this);
-  private boundMouseMove = this.onMouseMove.bind(this);
-  private boundMouseLeave = this.onMouseLeave.bind(this);
-  private boundTouchMove = this.onTouchMove.bind(this);
-  private boundTouchEnd = this.onTouchEnd.bind(this);
+  // Cached vignette gradients (rebuilt on resize, not every frame)
+  private vigMain!: CanvasGradient;
+  private vigBot!: CanvasGradient;
+  private vigTL!: CanvasGradient;
+  private vigBL!: CanvasGradient;
+  private vigBR!: CanvasGradient;
+  private vigLE!: CanvasGradient;
 
-  // Particle counts
+  // Cached bezier control points (rebuilt on resize)
+  private bp0x = 0; private bp0y = 0;
+  private bp1x = 0; private bp1y = 0;
+  private bp2x = 0; private bp2y = 0;
+  private bp3x = 0; private bp3y = 0;
+
+  private boundResize!: () => void;
+  private boundMouseMove!: (e: MouseEvent) => void;
+  private boundMouseLeave!: () => void;
+  private boundTouchMove!: (e: TouchEvent) => void;
+  private boundTouchEnd!: () => void;
+
   private get flowCount(): number {
     if (this.width < 480) return 180;
     if (this.width < 768) return 320;
     return 500;
   }
   private get settledCount(): number {
-    if (this.width < 480) return 600;
-    if (this.width < 768) return 1000;
-    return 1600;
+    if (this.width < 480) return 2000;
+    if (this.width < 768) return 3500;
+    return 5500;
   }
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
@@ -122,50 +164,200 @@ export class DustParticles implements OnInit, OnDestroy {
   ngOnInit(): void {
     if (!this.isBrowser) return;
     const canvas = this.canvasRef.nativeElement;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
     this.ctx = ctx;
-    this.dpr = Math.min(window.devicePixelRatio, 2);
+
+    const vigCanvas = this.vigCanvasRef.nativeElement;
+    const vigCtx = vigCanvas.getContext('2d', { alpha: true });
+    if (!vigCtx) return;
+    this.vigCtx = vigCtx;
+
+    this.reliefCanvas = document.createElement('canvas');
+    this.reliefCtx = this.reliefCanvas.getContext('2d', { alpha: true })!;
+
+    // Pre-render particle stamps
+    this.buildStamps();
+
+    this.dpr = Math.min(window.devicePixelRatio, 1.5);
     this.onResize();
+    this.initFluidGrid();
+
+    this.boundResize = this.onResize.bind(this);
+    this.boundMouseMove = this.onMouseMove.bind(this);
+    this.boundMouseLeave = this.onMouseLeave.bind(this);
+    this.boundTouchMove = this.onTouchMove.bind(this);
+    this.boundTouchEnd = this.onTouchEnd.bind(this);
 
     window.addEventListener('resize', this.boundResize);
-    canvas.addEventListener('mousemove', this.boundMouseMove);
-    canvas.addEventListener('mouseleave', this.boundMouseLeave);
-    canvas.addEventListener('touchmove', this.boundTouchMove, { passive: true });
-    canvas.addEventListener('touchend', this.boundTouchEnd);
+    window.addEventListener('mousemove', this.boundMouseMove);
+    window.addEventListener('mouseleave', this.boundMouseLeave);
+    window.addEventListener('touchmove', this.boundTouchMove, { passive: true });
+    window.addEventListener('touchend', this.boundTouchEnd);
 
-    // Create settled bottom particles
-    for (let i = 0; i < this.settledCount; i++) {
-      this.particles.push(this.createSettledParticle());
+    // Allocate SoA arrays
+    const total = this.settledCount + this.flowCount;
+    this.pFloat = new Float32Array(total * F._COUNT);
+    this.pLayer = new Uint8Array(total);
+    this.pKind = new Uint8Array(total);
+    this.pColor = new Uint8Array(total);
+    this.pCount = total;
+
+    // Layer bucket index arrays
+    this.farIdx = new Uint16Array(total);
+    this.midIdx = new Uint16Array(total);
+    this.nearIdx = new Uint16Array(total);
+
+    let idx = 0;
+    for (let i = 0; i < this.settledCount; i++, idx++) {
+      this.initSettledParticle(idx);
     }
-    // Create flowing stream particles (seeded across the path)
-    for (let i = 0; i < this.flowCount; i++) {
-      this.particles.push(this.createFlowParticle(Math.random()));
+    for (let i = 0; i < this.flowCount; i++, idx++) {
+      this.initFlowParticle(idx, Math.random());
     }
 
+    this.rebuildLayerBuckets();
     this.animate(0);
   }
 
   ngOnDestroy(): void {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     window.removeEventListener('resize', this.boundResize);
-    const canvas = this.canvasRef?.nativeElement;
-    if (canvas) {
-      canvas.removeEventListener('mousemove', this.boundMouseMove);
-      canvas.removeEventListener('mouseleave', this.boundMouseLeave);
-      canvas.removeEventListener('touchmove', this.boundTouchMove);
-      canvas.removeEventListener('touchend', this.boundTouchEnd);
+    window.removeEventListener('mousemove', this.boundMouseMove);
+    window.removeEventListener('mouseleave', this.boundMouseLeave);
+    window.removeEventListener('touchmove', this.boundTouchMove);
+    window.removeEventListener('touchend', this.boundTouchEnd);
+  }
+
+  // -- Pre-render particle stamps --
+  // 10 colors x 3 size tiers = 30 tiny offscreen canvases.
+  // At draw time we just drawImage with globalAlpha -- no gradient creation.
+  private buildStamps(): void {
+    this.stamps = [];
+    for (let ci = 0; ci < GOLD_PALETTE.length; ci++) {
+      const color = GOLD_PALETTE[ci];
+      const tier: HTMLCanvasElement[] = [];
+      for (let ti = 0; ti < 4; ti++) {
+        const sz = this.STAMP_SIZES[ti];
+        const c = document.createElement('canvas');
+        c.width = sz;
+        c.height = sz;
+        const cx = c.getContext('2d')!;
+        const half = sz / 2;
+        if (ti === 3) {
+          // Bokeh: very soft diffused glow for depth-of-field blur
+          const g = cx.createRadialGradient(half, half, 0, half, half, half);
+          g.addColorStop(0, color);
+          g.addColorStop(0.18, color);
+          g.addColorStop(0.40, color + 'AA');
+          g.addColorStop(0.65, color + '44');
+          g.addColorStop(1, color + '00');
+          cx.fillStyle = g;
+          cx.fillRect(0, 0, sz, sz);
+        } else if (ti === 2) {
+          // Large: solid core + tight soft edge
+          const outerR = half;
+          const solidR = half * 0.62;
+          const g = cx.createRadialGradient(half, half, 0, half, half, outerR);
+          g.addColorStop(0, color);
+          g.addColorStop(solidR / outerR, color);
+          g.addColorStop(1, color + '00');
+          cx.fillStyle = g;
+          cx.fillRect(0, 0, sz, sz);
+        } else if (ti === 1) {
+          // Medium: mostly solid, slight soft edge
+          const outerR = half;
+          const g = cx.createRadialGradient(half, half, 0, half, half, outerR);
+          g.addColorStop(0, color);
+          g.addColorStop(0.72, color);
+          g.addColorStop(1, color + '00');
+          cx.fillStyle = g;
+          cx.fillRect(0, 0, sz, sz);
+        } else {
+          // Fine: solid dot
+          cx.fillStyle = color;
+          cx.beginPath();
+          cx.arc(half, half, half, 0, Math.PI * 2);
+          cx.fill();
+        }
+        tier.push(c);
+      }
+      this.stamps.push(tier);
     }
   }
 
   private onResize(): void {
     const canvas = this.canvasRef.nativeElement;
-    this.dpr = Math.min(window.devicePixelRatio, 2);
+    this.dpr = Math.min(window.devicePixelRatio, 1.5);
     this.width = window.innerWidth;
     this.height = window.innerHeight;
     canvas.width = this.width * this.dpr;
     canvas.height = this.height * this.dpr;
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+
+    const vc = this.vigCanvasRef?.nativeElement;
+    if (vc) {
+      vc.width = this.width * this.dpr;
+      vc.height = this.height * this.dpr;
+      this.vigCtx?.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    }
+
+    if (this.reliefCanvas) {
+      this.reliefCanvas.width = Math.ceil(this.width * this.RELIEF_SCALE);
+      this.reliefCanvas.height = Math.ceil(this.height * this.RELIEF_SCALE);
+    }
+
+    if (this.fluidVx) {
+      this.fluidVx.fill(0); this.fluidVy.fill(0);
+      this.fluidVx0.fill(0); this.fluidVy0.fill(0);
+    }
+
+    // Cache bezier control points
+    const w = this.width, h = this.height;
+    this.bp0x = w * 1.02; this.bp0y = h * -0.03;
+    this.bp1x = w * 0.82; this.bp1y = h * 0.28;
+    this.bp2x = w * 0.62; this.bp2y = h * 0.65;
+    this.bp3x = w * 0.55; this.bp3y = h * 1.06;
+
+    // Rebuild cached vignette gradients
+    this.buildVignetteGradients();
+  }
+
+  private buildVignetteGradients(): void {
+    const vc = this.vigCtx;
+    if (!vc) return;
+    const w = this.width, h = this.height;
+
+    const cx = w * 0.5, cy = h * 0.42;
+    const vigR = Math.max(w, h) * 0.85;
+    this.vigMain = vc.createRadialGradient(cx, cy, vigR * 0.18, cx, cy, vigR);
+    this.vigMain.addColorStop(0, 'rgba(0,0,0,0)');
+    this.vigMain.addColorStop(0.35, 'rgba(0,0,0,0.28)');
+    this.vigMain.addColorStop(0.55, 'rgba(0,0,0,0.58)');
+    this.vigMain.addColorStop(0.75, 'rgba(0,0,0,0.82)');
+    this.vigMain.addColorStop(1, 'rgba(0,0,0,0.94)');
+
+    this.vigBot = vc.createLinearGradient(0, h * 0.55, 0, h);
+    this.vigBot.addColorStop(0, 'rgba(0,0,0,0)');
+    this.vigBot.addColorStop(0.25, 'rgba(0,0,0,0.20)');
+    this.vigBot.addColorStop(0.55, 'rgba(0,0,0,0.42)');
+    this.vigBot.addColorStop(1, 'rgba(0,0,0,0.65)');
+
+    this.vigTL = vc.createRadialGradient(0, 0, 0, 0, 0, Math.max(w, h) * 0.35);
+    this.vigTL.addColorStop(0, 'rgba(0,0,0,0.70)');
+    this.vigTL.addColorStop(1, 'rgba(0,0,0,0)');
+
+    this.vigBL = vc.createRadialGradient(0, h, 0, 0, h, Math.max(w, h) * 0.30);
+    this.vigBL.addColorStop(0, 'rgba(0,0,0,0.60)');
+    this.vigBL.addColorStop(1, 'rgba(0,0,0,0)');
+
+    this.vigBR = vc.createRadialGradient(w, h, 0, w, h, Math.max(w, h) * 0.30);
+    this.vigBR.addColorStop(0, 'rgba(0,0,0,0.56)');
+    this.vigBR.addColorStop(1, 'rgba(0,0,0,0)');
+
+    this.vigLE = vc.createLinearGradient(0, 0, w * 0.18, 0);
+    this.vigLE.addColorStop(0, 'rgba(0,0,0,0.38)');
+    this.vigLE.addColorStop(1, 'rgba(0,0,0,0)');
   }
 
   private onMouseMove(e: MouseEvent): void {
@@ -177,9 +369,7 @@ export class DustParticles implements OnInit, OnDestroy {
     this.mouseLastMoveTime = performance.now();
   }
 
-  private onMouseLeave(): void {
-    this.mouseActive = false;
-  }
+  private onMouseLeave(): void { this.mouseActive = false; }
 
   private onTouchMove(e: TouchEvent): void {
     if (e.touches.length > 0) {
@@ -192,185 +382,270 @@ export class DustParticles implements OnInit, OnDestroy {
     }
   }
 
-  private onTouchEnd(): void {
-    this.mouseActive = false;
+  private onTouchEnd(): void { this.mouseActive = false; }
+
+  // -- Bezier helpers (use cached control points) --
+  private flowPosX(t: number): number {
+    const mt = 1 - t, mt2 = mt * mt, mt3 = mt2 * mt, t2 = t * t, t3 = t2 * t;
+    return mt3 * this.bp0x + 3 * mt2 * t * this.bp1x + 3 * mt * t2 * this.bp2x + t3 * this.bp3x;
   }
-
-  // ── Flow path: inverted funnel from top-right, curving down to bottom ──
-  // Cubic bezier: narrow at top-right, sweeps left-and-down through center,
-  // then fans out wide across the bottom
-  private getFlowPosition(t: number): { x: number; y: number } {
-    const w = this.width;
-    const h = this.height;
-
-    const p0x = w * 1.02, p0y = h * -0.03;   // Source: top-right, just off screen
-    const p1x = w * 0.82, p1y = h * 0.28;    // Pull down, staying right
-    const p2x = w * 0.62, p2y = h * 0.65;    // Gentle leftward sweep, still right of center
-    const p3x = w * 0.55, p3y = h * 1.06;    // End: just right of center-bottom
-
-    const mt = 1 - t;
-    const mt2 = mt * mt;
-    const mt3 = mt2 * mt;
-    const t2 = t * t;
-    const t3 = t2 * t;
-
-    return {
-      x: mt3 * p0x + 3 * mt2 * t * p1x + 3 * mt * t2 * p2x + t3 * p3x,
-      y: mt3 * p0y + 3 * mt2 * t * p1y + 3 * mt * t2 * p2y + t3 * p3y,
-    };
+  private flowPosY(t: number): number {
+    const mt = 1 - t, mt2 = mt * mt, mt3 = mt2 * mt, t2 = t * t, t3 = t2 * t;
+    return mt3 * this.bp0y + 3 * mt2 * t * this.bp1y + 3 * mt * t2 * this.bp2y + t3 * this.bp3y;
   }
-
-  private getFlowTangent(t: number): { tx: number; ty: number } {
-    const w = this.width;
-    const h = this.height;
-
-    const p0x = w * 1.02, p0y = h * -0.03;
-    const p1x = w * 0.82, p1y = h * 0.28;
-    const p2x = w * 0.62, p2y = h * 0.65;
-    const p3x = w * 0.55, p3y = h * 1.06;
-
+  private flowTangent(t: number): { tx: number; ty: number } {
     const mt = 1 - t;
-    // Derivative of cubic bezier
-    const tx = 3 * mt * mt * (p1x - p0x) + 6 * mt * t * (p2x - p1x) + 3 * t * t * (p3x - p2x);
-    const ty = 3 * mt * mt * (p1y - p0y) + 6 * mt * t * (p2y - p1y) + 3 * t * t * (p3y - p2y);
+    const tx = 3 * mt * mt * (this.bp1x - this.bp0x) + 6 * mt * t * (this.bp2x - this.bp1x) + 3 * t * t * (this.bp3x - this.bp2x);
+    const ty = 3 * mt * mt * (this.bp1y - this.bp0y) + 6 * mt * t * (this.bp2y - this.bp1y) + 3 * t * t * (this.bp3y - this.bp2y);
     const len = Math.sqrt(tx * tx + ty * ty) || 1;
-
     return { tx: tx / len, ty: ty / len };
   }
 
-  // ── Settled bottom particles — dense cloud filling bottom ~45% ──
-  private createSettledParticle(): Particle {
-    const x = Math.random() * this.width;
-    // Power curve: dense at very bottom, thinning toward ~45% up
-    const verticalRange = 0.45; // covers bottom 45% of screen
-    const y = this.height * (1 - verticalRange * Math.pow(Math.random(), 2.2));
+  // -- Particle init (writes directly to SoA arrays) --
+  //
+  // Ground-plane depth model (reference: cinematic dust surface):
+  //   Dense bright particles at the very bottom, exponentially thinning
+  //   upward. Upper half of screen is nearly empty — just a few stray
+  //   bokeh motes floating in the air above the surface.
+  //
+  //   FAR  — the distant receding surface. Tiny sharp specks clustered
+  //          at the bottom, some reaching into the mid-zone as the
+  //          "floor recedes into the distance."
+  //   MID  — the bulk of the visible surface. Sharp/medium particles,
+  //          heavy at the bottom, thinning sharply upward.
+  //   NEAR — a handful of large soft bokeh floating just in front of
+  //          the camera, lazily drifting above the surface.
+  //
+  private initSettledParticle(i: number): void {
+    const o = i * F._COUNT;
+    const w = this.width, h = this.height;
 
-    // Particles higher up are more sparse and fainter
-    const heightRatio = (this.height - y) / (this.height * verticalRange); // 0 at bottom, 1 at top of range
+    // Horizontal spread — full width with slight center concentration
+    const x = Math.random() * w;
 
-    const roll = Math.random();
-    let layer: 'far' | 'mid' | 'near';
-    if (roll < 0.65) layer = 'far';
-    else if (roll < 0.92) layer = 'mid';
-    else layer = 'near';
+    // ---- Vertical pre-sample ----
+    // We need to know roughly WHERE the particle will sit vertically
+    // before assigning its layer, so bigger blurry particles (NEAR) gravitate
+    // toward the bottom and smaller sharp ones (FAR) toward the top.
+    const nx = x / w;
+    const bowlU = 4 * (nx - 0.5) * (nx - 0.5); // 0 at center, 1 at edges
 
-    let size: number;
-    let baseOpacity: number;
+    const surfaceCenter = 0.78;
+    const surfaceEdge   = 0.48;
+    const surfaceLine = surfaceCenter - bowlU * (surfaceCenter - surfaceEdge);
 
-    if (layer === 'near') {
-      size = 2.5 + Math.random() * 4;
-      baseOpacity = (0.02 + Math.random() * 0.045) * (1 - heightRatio * 0.5);
-    } else if (layer === 'mid') {
-      size = 1.2 + Math.random() * 2.2;
-      baseOpacity = (0.15 + Math.random() * 0.3) * (1 - heightRatio * 0.4);
+    const floorCenter = 1.08;
+    const floorEdge   = 1.02;
+    const floor = floorCenter - bowlU * (floorCenter - floorEdge);
+
+    // Pre-sample a vertical position (0=surface, 1=floor)
+    const vSample = Math.pow(Math.random(), 1.8); // bottom-heavy
+    // depthBias: 0 at surface (top of band) → 1 at floor (bottom)
+    // This biases layer selection so bottom = NEAR, top = FAR
+    const depthBias = 1 - vSample; // 0=bottom, 1=top
+
+    // ---- Layer assignment (depth-biased) ----
+    // Base ratios: FAR 38% | MID 55% | NEAR 7%
+    // depthBias shifts the odds: at bottom, NEAR chance ×4, FAR chance ×0.3
+    //                            at top, FAR chance ×2, NEAR chance ×0.1
+    const farWeight  = 0.38 * (0.3 + depthBias * 1.7);     // top-heavy: 0.3→2.0
+    const midWeight  = 0.55;                                 // even throughout
+    const nearWeight = 0.07 * (0.1 + (1 - depthBias) * 3.9); // bottom-heavy: 0.1→4.0
+    const totalW = farWeight + midWeight + nearWeight;
+    const roll = Math.random() * totalW;
+    let layer: number;
+    if (roll < farWeight) layer = LAYER.FAR;
+    else if (roll < farWeight + midWeight) layer = LAYER.MID;
+    else layer = LAYER.NEAR;
+
+    // ---- Vertical placement ----
+    //
+    // U-SHAPED CURVE: The particle field forms a concave valley.
+    //   - Left and right edges: particles rise HIGHER on screen
+    //   - Center: particles dip DOWN to the bottom
+    //   - Bottom-left and bottom-right corners: more void / sparse
+    //
+
+    // Corner softness: gentle fade at edges
+    const edgeFade = 1 - Math.pow(bowlU, 0.8) * 0.35; // 1 center, 0.65 at edge
+
+    let y: number;
+    if (layer === LAYER.NEAR) {
+      // Foreground bokeh — strongly biased to the very bottom
+      const nearSurface = surfaceLine + (floor - surfaceLine) * 0.35;
+      y = h * (nearSurface + Math.pow(Math.random(), 0.6) * (floor - nearSurface));
+    } else if (layer === LAYER.MID) {
+      // Main density — bottom-heavy but with a gentle tail upward
+      const t = Math.pow(Math.random(), 2.0);
+      y = h * (floor - t * (floor - surfaceLine));
     } else {
-      const sizeRoll = Math.random();
-      if (sizeRoll < 0.5) size = 0.3 + Math.random() * 0.5;
-      else if (sizeRoll < 0.8) size = 0.8 + Math.random() * 0.7;
-      else if (sizeRoll < 0.95) size = 1.4 + Math.random() * 0.8;
-      else size = 2.0 + Math.random() * 1.0;
-
-      const rawOpacity = size > 1.8
-        ? 0.35 + Math.random() * 0.45
-        : size > 1.0
-          ? 0.2 + Math.random() * 0.3
-          : 0.06 + Math.random() * 0.2;
-      baseOpacity = rawOpacity * (1 - heightRatio * 0.6);
+      // FAR — small sharp particles, allowed to reach higher up
+      const farSurface = surfaceLine - 0.14;
+      const t = Math.pow(Math.random(), 1.4);
+      y = h * (floor - t * (floor - farSurface));
     }
 
-    return {
-      x, y, ax: x, ay: y,
-      vx: 0, vy: 0,
-      size,
-      opacity: baseOpacity * Math.random(),
-      baseOpacity,
-      color: GOLD_PALETTE[Math.floor(Math.random() * GOLD_PALETTE.length)],
-      flickerSpeed: layer === 'near' ? 0.3 + Math.random() * 0.6 : 0.8 + Math.random() * 2.5,
-      flickerPhase: Math.random() * Math.PI * 2,
-      layer,
-      t: 0, speed: 0, scatter: 0,
-      returnRate: layer === 'near' ? 0.015 + Math.random() * 0.015 : 0.03 + Math.random() * 0.03,
-      kind: 'settled',
-    };
+    // ---- Surface fade: no hard line ----
+    // Particles near the top of the band fade out smoothly.
+    // surfaceProx: 0 = deep in the band (full opacity), 1 = at the surface edge
+    const yNorm = y / h;
+    const bandRange = floor - surfaceLine;
+    const surfaceProx = bandRange > 0.01 ? Math.max(0, Math.min(1, (surfaceLine + bandRange * 0.05 - yNorm + surfaceLine) / (bandRange * 0.35))) : 1;
+    // Remap: particles in the top ~35% of the band fade from 1→0
+    const posInBand = bandRange > 0.01 ? (yNorm - surfaceLine) / bandRange : 1; // 0=surface, 1=floor
+    const surfaceFade = posInBand < 0.35 ? posInBand / 0.35 : 1; // smooth 0→1 over top 35%
+
+    // Bottom proximity for brightness boost
+    const bottomProximity = Math.max(0, (yNorm - 0.5) * 2); // 0 at mid, 1 at bottom
+
+    // ---- Size & opacity ----
+    // DEPTH from visible size contrast. surfaceFade kills the hard line.
+    let size: number, baseOpacity: number;
+    if (layer === LAYER.FAR) {
+      size = 0.4 + Math.random() * 0.6;
+      baseOpacity = (0.15 + Math.random() * 0.30) * (0.55 + bottomProximity * 0.45) * edgeFade * surfaceFade;
+    } else if (layer === LAYER.MID) {
+      size = 0.8 + Math.random() * 1.6;
+      baseOpacity = (0.30 + Math.random() * 0.45) * (0.45 + bottomProximity * 0.55) * edgeFade * surfaceFade;
+    } else {
+      size = 3.0 + Math.random() * 4.0;
+      baseOpacity = (0.04 + Math.random() * 0.08) * edgeFade;
+    }
+
+    // Camera-depth value: FAR→0, MID→0.5, NEAR→1
+    const depth = layer === LAYER.FAR  ? Math.random() * 0.30
+               : layer === LAYER.MID  ? 0.30 + Math.random() * 0.40
+               :                        0.70 + Math.random() * 0.30;
+
+    const flickerSpeed = layer === LAYER.NEAR ? 0.15 + Math.random() * 0.30
+      : layer === LAYER.MID ? 0.8 + Math.random() * 2.0
+      : 1.2 + Math.random() * 2.5;
+
+    const returnRate = layer === LAYER.NEAR ? 0.006 + Math.random() * 0.006
+      : layer === LAYER.MID ? 0.025 + Math.random() * 0.025
+      : 0.040 + Math.random() * 0.040;
+
+    const pf = this.pFloat;
+    pf[o + F.X] = x;
+    pf[o + F.Y] = y;
+    pf[o + F.AX] = x;
+    pf[o + F.AY] = y;
+    pf[o + F.VX] = 0;
+    pf[o + F.VY] = 0;
+    pf[o + F.SIZE] = size;
+    pf[o + F.OPACITY] = baseOpacity * Math.random();
+    pf[o + F.BASE_OPACITY] = baseOpacity;
+    pf[o + F.FLICKER_SPEED] = flickerSpeed;
+    pf[o + F.FLICKER_PHASE] = Math.random() * Math.PI * 2;
+    pf[o + F.T] = 0;
+    pf[o + F.SPEED] = 0;
+    pf[o + F.SCATTER] = 0;
+    pf[o + F.RETURN_RATE] = returnRate;
+    pf[o + F.DEPTH] = depth;
+
+    this.pLayer[i] = layer;
+    this.pKind[i] = KIND.SETTLED;
+    this.pColor[i] = Math.floor(Math.random() * GOLD_PALETTE.length);
   }
 
-  // ── Flow stream particles ──
-  private createFlowParticle(initialT: number): Particle {
+  private initFlowParticle(i: number, initialT: number): void {
+    const o = i * F._COUNT;
+    const w = this.width, h = this.height;
     const t = initialT;
-    const tangent = this.getFlowTangent(Math.max(0.01, Math.min(0.99, t)));
-    const perpX = -tangent.ty;
-    const perpY = tangent.tx;
+    const ct = Math.max(0.01, Math.min(0.99, t));
+    const tang = this.flowTangent(ct);
+    const perpX = -tang.ty, perpY = tang.tx;
 
-    // Inverted funnel: narrow at top (t≈0), wide at bottom (t≈1)
-    const funnelWidth = 0.06 + t * 0.55; // 6% → 61% of min dimension
-    const baseSpread = Math.min(this.width, this.height) * funnelWidth;
+    const funnelWidth = 0.06 + ct * 0.55;
+    const baseSpread = Math.min(w, h) * funnelWidth;
     const scatter = (Math.random() - 0.5) * 2 * baseSpread;
 
-    const pos = this.getFlowPosition(t);
-    const x = pos.x + perpX * scatter;
-    const y = pos.y + perpY * scatter;
+    const px = this.flowPosX(ct) + perpX * scatter;
+    const py = this.flowPosY(ct) + perpY * scatter;
 
-    let layer: 'far' | 'mid' | 'near';
     const roll = Math.random();
-    if (roll < 0.40) layer = 'far';
-    else if (roll < 0.85) layer = 'mid';
-    else layer = 'near';
+    let layer: number;
+    if (roll < 0.45) layer = LAYER.FAR;
+    else if (roll < 0.82) layer = LAYER.MID;
+    else layer = LAYER.NEAR;
 
     let size: number;
-    if (layer === 'near') {
-      size = 3 + Math.random() * 6;
-    } else if (layer === 'mid') {
-      size = 1.0 + Math.random() * 2.5;
-    } else {
-      size = 0.3 + Math.random() * 1.0;
-    }
+    if (layer === LAYER.NEAR) size = 1.0 + Math.random() * 1.5;
+    else if (layer === LAYER.MID) size = 0.3 + Math.random() * 1.1;
+    else size = 0.15 + Math.random() * 0.45;
 
     let baseOpacity: number;
-    if (layer === 'near') {
-      baseOpacity = 0.025 + Math.random() * 0.055;
-    } else if (layer === 'mid') {
-      baseOpacity = 0.18 + Math.random() * 0.38;
-    } else {
-      baseOpacity = 0.08 + Math.random() * 0.3;
-    }
+    if (layer === LAYER.NEAR) baseOpacity = 0.03 + Math.random() * 0.07;
+    else if (layer === LAYER.MID) baseOpacity = 0.20 + Math.random() * 0.40;
+    else baseOpacity = 0.05 + Math.random() * 0.16;
 
     let speed: number;
-    if (layer === 'near') speed = 0.000025 + Math.random() * 0.00004;
-    else if (layer === 'mid') speed = 0.00006 + Math.random() * 0.0001;
-    else speed = 0.00004 + Math.random() * 0.00008;
+    if (layer === LAYER.NEAR) speed = 0.00002 + Math.random() * 0.00003;
+    else if (layer === LAYER.MID) speed = 0.00006 + Math.random() * 0.0001;
+    else speed = 0.00003 + Math.random() * 0.00006;
 
-    return {
-      x, y, ax: x, ay: y,
-      vx: 0, vy: 0,
-      size,
-      opacity: baseOpacity * Math.random(),
-      baseOpacity,
-      color: GOLD_PALETTE[Math.floor(Math.random() * GOLD_PALETTE.length)],
-      flickerSpeed: layer === 'near' ? 0.3 + Math.random() * 0.5 : 0.8 + Math.random() * 2.0,
-      flickerPhase: Math.random() * Math.PI * 2,
-      layer,
-      t,
-      speed,
-      scatter,
-      returnRate: layer === 'near'
-        ? 0.015 + Math.random() * 0.015
-        : 0.03 + Math.random() * 0.04,
-      kind: 'flow',
-    };
+    const flickerSpeed = layer === LAYER.NEAR ? 0.3 + Math.random() * 0.5 : 0.8 + Math.random() * 2.0;
+    const returnRate = layer === LAYER.NEAR ? 0.015 + Math.random() * 0.015 : 0.03 + Math.random() * 0.04;
+
+    const pf = this.pFloat;
+    pf[o + F.X] = px;
+    pf[o + F.Y] = py;
+    pf[o + F.AX] = px;
+    pf[o + F.AY] = py;
+    pf[o + F.VX] = 0;
+    pf[o + F.VY] = 0;
+    pf[o + F.SIZE] = size;
+    pf[o + F.OPACITY] = baseOpacity * Math.random();
+    pf[o + F.BASE_OPACITY] = baseOpacity;
+    pf[o + F.FLICKER_SPEED] = flickerSpeed;
+    pf[o + F.FLICKER_PHASE] = Math.random() * Math.PI * 2;
+    pf[o + F.T] = t;
+    pf[o + F.SPEED] = speed;
+    pf[o + F.SCATTER] = scatter;
+    pf[o + F.RETURN_RATE] = returnRate;
+    pf[o + F.DEPTH] = 0;
+
+    this.pLayer[i] = layer;
+    this.pKind[i] = KIND.FLOW;
+    this.pColor[i] = Math.floor(Math.random() * GOLD_PALETTE.length);
   }
 
+  private rebuildLayerBuckets(): void {
+    let fi = 0, mi = 0, ni = 0;
+    for (let i = 0; i < this.pCount; i++) {
+      const l = this.pLayer[i];
+      if (l === LAYER.FAR) this.farIdx[fi++] = i;
+      else if (l === LAYER.MID) this.midIdx[mi++] = i;
+      else this.nearIdx[ni++] = i;
+    }
+    this.farCount = fi;
+    this.midCount = mi;
+    this.nearCount = ni;
+  }
+
+  // -- Main animation loop --
   private animate = (timestamp: number): void => {
     this.time = timestamp * 0.001;
+    this.frameCount++;
     const ctx = this.ctx;
-    ctx.clearRect(0, 0, this.width, this.height);
+    const w = this.width, h = this.height;
+    ctx.clearRect(0, 0, w, h);
 
-    this.drawBottomGlow(ctx);
+    // Smooth cursor position for invisible vignette brightening
+    const lerpRate = 0.12;
+    const timeSinceMove = performance.now() - this.mouseLastMoveTime;
+    if (this.cursorSmoothedX < -9000) {
+      this.cursorSmoothedX = this.mouseX;
+      this.cursorSmoothedY = this.mouseY;
+    } else {
+      this.cursorSmoothedX += (this.mouseX - this.cursorSmoothedX) * lerpRate;
+      this.cursorSmoothedY += (this.mouseY - this.cursorSmoothedY) * lerpRate;
+    }
+    // Fade cursor strength in/out
+    const targetStrength = (this.mouseActive && timeSinceMove < 1200) ? 1 : 0;
+    this.cursorStrength += (targetStrength - this.cursorStrength) * 0.08;
 
-    // ── Update and draw LiquidEther viscous trail ──
-    this.updateTrail();
-    this.drawEtherTrail(ctx);
-
-    // Smooth mouse velocity
+    // Mouse velocity
     if (this.mouseActive) {
       this.mouseVx = (this.mouseX - this.prevMouseX) * 0.6 + this.mouseVx * 0.4;
       this.mouseVy = (this.mouseY - this.prevMouseY) * 0.6 + this.mouseVy * 0.4;
@@ -381,307 +656,465 @@ export class DustParticles implements OnInit, OnDestroy {
       this.mouseVy *= 0.92;
     }
 
-    for (const p of this.particles) {
-      // ── Update anchor position ──
-      if (p.kind === 'flow') {
-        p.t += p.speed;
-        if (p.t > 1.06) {
-          // Recycle to start
-          p.t = -0.04 - Math.random() * 0.03;
-          p.vx = 0;
-          p.vy = 0;
-          p.opacity = 0;
-        }
+    // Fluid sim
+    this.fluidStep();
 
-        const clampedT = Math.max(0.01, Math.min(0.99, p.t));
-        const pos = this.getFlowPosition(clampedT);
-        const tangent = this.getFlowTangent(clampedT);
-        const perpX = -tangent.ty;
-        const perpY = tangent.tx;
+    // Update all particles (single pass)
+    this.updateParticles();
 
-        // Inverted funnel width at this t
-        const funnelWidth = 0.06 + clampedT * 0.55;
-        const spread = Math.min(this.width, this.height) * funnelWidth;
-        // Keep the same scatter ratio but scale with the funnel
-        const scatterNorm = p.scatter / (Math.min(this.width, this.height) * 0.61 || 1);
-        const currentScatter = scatterNorm * spread;
+    // Draw back-to-front using pre-sorted layer buckets
+    this.drawBucket(ctx, this.farIdx, this.farCount);
+    this.drawBucket(ctx, this.midIdx, this.midCount);
+    this.drawBucket(ctx, this.nearIdx, this.nearCount);
 
-        const targetAx = pos.x + perpX * currentScatter;
-        const targetAy = pos.y + perpY * currentScatter;
-
-        // Move anchor smoothly toward target
-        p.ax += (targetAx - p.ax) * 0.06;
-        p.ay += (targetAy - p.ay) * 0.06;
-      }
-      // Settled particles: anchor never moves (already set at creation)
-
-      // ── Viscous damping (LiquidEther-style: thick fluid, particles coast) ──
-      p.vx *= this.VISCOUS_DAMPING;
-      p.vy *= this.VISCOUS_DAMPING;
-
-      // Slow viscous return to anchor — like thick fluid oozing back
-      const viscousReturn = p.returnRate * 0.35;
-      p.x += (p.ax - p.x) * viscousReturn;
-      p.y += (p.ay - p.y) * viscousReturn;
-      p.x += p.vx;
-      p.y += p.vy;
-
-      // ── LiquidEther viscous mouse physics ──
-      // mouseForce=25, cursorSize=100, viscous=30, isViscous=true
-      // Force is primarily DIRECTIONAL (dragging fluid), not radial push
-      const mouseSpeed = Math.sqrt(this.mouseVx * this.mouseVx + this.mouseVy * this.mouseVy);
-      const timeSinceMove = performance.now() - this.mouseLastMoveTime;
-      // Viscous fluid: effect lingers longer (~600ms decay)
-      const moveStrength = Math.min(mouseSpeed * 0.08, 1) * Math.max(0, 1 - timeSinceMove / 600);
-
-      if (moveStrength > 0.003) {
-        const dx = p.x - this.mouseX;
-        const dy = p.y - this.mouseY;
-        const distSq = dx * dx + dy * dy;
-        const radius = this.CURSOR_SIZE * (p.layer === 'near' ? 1.3 : 1.0);
-
-        if (distSq < radius * radius) {
-          const dist = Math.sqrt(distSq) || 0.01;
-          // Smooth cubic falloff — no visible hard edge
-          const t = dist / radius;
-          const falloff = (1 - t) * (1 - t) * (1 - t);
-
-          // 1) Directional viscous drag — push particles in mouse's travel direction
-          //    Like dragging your hand through thick fluid, pulling it along
-          const dragForce = this.MOUSE_FORCE * falloff * moveStrength * 0.018;
-          p.vx += this.mouseVx * dragForce;
-          p.vy += this.mouseVy * dragForce;
-
-          // 2) Gentle radial displacement — fluid parts around the cursor
-          const nx = dx / dist;
-          const ny = dy / dist;
-          const radialForce = falloff * moveStrength * 4;
-          p.vx += nx * radialForce;
-          p.vy += ny * radialForce;
-
-          // 3) Side-flow: particles flow around the obstruction (Bernoulli effect)
-          if (mouseSpeed > 1) {
-            const mdx = this.mouseVx / mouseSpeed;
-            const mdy = this.mouseVy / mouseSpeed;
-            const sideNx = -mdy;
-            const sideNy = mdx;
-            const sideSign = (dx * sideNx + dy * sideNy) >= 0 ? 1 : -1;
-            const sideForce = falloff * moveStrength * 2.5;
-            p.vx += sideNx * sideSign * sideForce;
-            p.vy += sideNy * sideSign * sideForce;
-          }
-
-          // 4) Wake suction — particles behind cursor pulled gently into wake
-          if (mouseSpeed > 1) {
-            const mdx = this.mouseVx / mouseSpeed;
-            const mdy = this.mouseVy / mouseSpeed;
-            const behind = -(dx * mdx + dy * mdy); // positive = behind cursor
-            if (behind > 0) {
-              const wakePull = falloff * moveStrength * 1.2 * Math.min(behind / radius, 1);
-              p.vx += mdx * wakePull;
-              p.vy += mdy * wakePull;
-            }
-          }
-        }
-      }
-
-      // Subtle ambient drift
-      const wave = p.layer === 'near' ? 0.005 : 0.012;
-      p.x += Math.sin(this.time * 0.25 + p.flickerPhase) * wave;
-      p.y += Math.cos(this.time * 0.18 + p.flickerPhase * 1.3) * wave * 0.5;
-
-      // ── Opacity ──
-      let envelope = 1;
-      if (p.kind === 'flow') {
-        if (p.t < 0) envelope = 0;
-        else if (p.t < 0.07) envelope = p.t / 0.07;
-        else if (p.t > 0.93) envelope = (1 - p.t) / 0.07;
-      }
-      envelope = Math.max(0, Math.min(1, envelope));
-
-      // Displaced particles fade slightly (dust thins when pushed apart)
-      const vel = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-      const displaceFade = 1 - Math.min(vel * 0.04, 0.35);
-
-      const flicker = 0.65 + 0.35 * Math.sin(this.time * p.flickerSpeed + p.flickerPhase);
-      p.opacity += (p.baseOpacity * envelope * flicker * displaceFade - p.opacity) * 0.08;
-    }
-
-    // Draw back-to-front: far → mid → near
-    for (const layer of ['far', 'mid', 'near'] as const) {
-      for (const p of this.particles) {
-        if (p.layer !== layer || p.opacity < 0.004) continue;
-        this.drawParticle(ctx, p);
-      }
+    // Dynamic vignette (every other frame for perf)
+    if (this.frameCount & 1) {
+      this.drawDynamicVignette();
     }
 
     this.animationId = requestAnimationFrame(this.animate);
   };
 
-  private updateTrail(): void {
-    const mouseSpeed = Math.sqrt(this.mouseVx * this.mouseVx + this.mouseVy * this.mouseVy);
-    const timeSinceMove = performance.now() - this.mouseLastMoveTime;
+  // -- Particle update (single pass, no object allocation) --
+  private updateParticles(): void {
+    const pf = this.pFloat;
+    const pKind = this.pKind;
+    const pLayer = this.pLayer;
+    const n = this.pCount;
+    const time = this.time;
+    const w = this.width, h = this.height;
+    const minDim = Math.min(w, h);
+    const fluidToPixel = Math.max(w, h) / this.FLUID_N;
 
-    // Add new trail point when mouse is moving
-    if (mouseSpeed > 0.5 && timeSinceMove < 200) {
-      this.trail.unshift({
-        x: this.mouseX,
-        y: this.mouseY,
-        age: 0,
-        vx: this.mouseVx,
-        vy: this.mouseVy,
-      });
-      if (this.trail.length > this.TRAIL_MAX_LENGTH) {
-        this.trail.pop();
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const fvx = this.fluidVx;
+    const fvy = this.fluidVy;
+    const invW = N / w;
+    const invH = N / h;
+
+    for (let i = 0; i < n; i++) {
+      const o = i * F._COUNT;
+      const kind = pKind[i];
+      const layer = pLayer[i];
+
+      // -- Update anchor for flow particles --
+      if (kind === KIND.FLOW) {
+        let t = pf[o + F.T];
+        t += pf[o + F.SPEED];
+
+        if (t > 1.06) {
+          t = -0.04 - Math.random() * 0.03;
+          pf[o + F.VX] = 0;
+          pf[o + F.VY] = 0;
+          pf[o + F.OPACITY] = 0;
+        }
+        pf[o + F.T] = t;
+
+        const ct = t < 0.01 ? 0.01 : t > 0.99 ? 0.99 : t;
+        const fpx = this.flowPosX(ct);
+        const fpy = this.flowPosY(ct);
+        const tang = this.flowTangent(ct);
+        const perpX = -tang.ty, perpY = tang.tx;
+
+        const funnelWidth = 0.06 + ct * 0.55;
+        const spread = minDim * funnelWidth;
+        const scatterNorm = pf[o + F.SCATTER] / (minDim * 0.61 || 1);
+        const currentScatter = scatterNorm * spread;
+
+        const targetAx = fpx + perpX * currentScatter;
+        const targetAy = fpy + perpY * currentScatter;
+
+        pf[o + F.AX] += (targetAx - pf[o + F.AX]) * 0.06;
+        pf[o + F.AY] += (targetAy - pf[o + F.AY]) * 0.06;
       }
+
+      // -- Inline fluid sampling (no object allocation) --
+      let px = pf[o + F.X];
+      let py = pf[o + F.Y];
+      let gi = px * invW + 0.5;
+      let gj = py * invH + 0.5;
+      if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
+      if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
+      const i0 = gi | 0;
+      const j0 = gj | 0;
+      const s = gi - i0;
+      const tt = gj - j0;
+      const s1 = 1 - s;
+      const t1 = 1 - tt;
+      const idx00 = i0 + S * j0;
+      const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
+      const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
+
+      const coupling = layer === LAYER.NEAR ? 0.35 : layer === LAYER.MID ? 0.20 : 0.08;
+      let vx = pf[o + F.VX] + flVx * fluidToPixel * coupling;
+      let vy = pf[o + F.VY] + flVy * fluidToPixel * coupling;
+
+      // Soft containment
+      if (kind === KIND.SETTLED) {
+        const dx = px - pf[o + F.AX];
+        const dy = py - pf[o + F.AY];
+        const dd = Math.sqrt(dx * dx + dy * dy);
+        if (dd > 150) {
+          const pull = 0.004 * ((dd - 150) / 150);
+          vx -= dx * pull;
+          vy -= dy * pull;
+        }
+      } else {
+        const rr = pf[o + F.RETURN_RATE] * 0.3;
+        vx += (pf[o + F.AX] - px) * rr;
+        vy += (pf[o + F.AY] - py) * rr;
+      }
+
+      // Damping
+      const damp = layer === LAYER.NEAR ? 0.96 : layer === LAYER.MID ? 0.94 : 0.90;
+      vx *= damp;
+      vy *= damp;
+
+      px += vx;
+      py += vy;
+
+      // Ambient drift
+      const phase = pf[o + F.FLICKER_PHASE];
+      const wave = layer === LAYER.NEAR ? 0.012 : layer === LAYER.MID ? 0.009 : 0.004;
+      const ds = layer === LAYER.NEAR ? 0.25 : layer === LAYER.MID ? 0.17 : 0.08;
+      px += Math.sin(time * ds + phase) * wave;
+      py += Math.cos(time * (ds * 0.72) + phase * 1.3) * wave * 0.5;
+
+      pf[o + F.VX] = vx;
+      pf[o + F.VY] = vy;
+      pf[o + F.X] = px;
+      pf[o + F.Y] = py;
+
+      // -- Opacity --
+      let envelope = 1;
+      if (kind === KIND.FLOW) {
+        const t = pf[o + F.T];
+        if (t < 0) envelope = 0;
+        else if (t < 0.07) envelope = t / 0.07;
+        else if (t > 0.93) envelope = (1 - t) / 0.07;
+        if (envelope < 0) envelope = 0;
+        else if (envelope > 1) envelope = 1;
+      }
+
+      const vel = Math.sqrt(vx * vx + vy * vy);
+      const displaceFade = 1 - (vel * 0.04 < 0.35 ? vel * 0.04 : 0.35);
+
+      const flicker = 0.65 + 0.35 * Math.sin(time * pf[o + F.FLICKER_SPEED] + phase);
+      const targetOp = pf[o + F.BASE_OPACITY] * envelope * flicker * displaceFade;
+      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * 0.08;
+    }
+  }
+
+  // -- Draw a bucket of particles using pre-rendered stamps --
+  private drawBucket(ctx: CanvasRenderingContext2D, indices: Uint16Array, count: number): void {
+    const pf = this.pFloat;
+    const pColor = this.pColor;
+    const stamps = this.stamps;
+    const w = this.width, h = this.height;
+
+    for (let b = 0; b < count; b++) {
+      const i = indices[b];
+      const o = i * F._COUNT;
+      const opacity = pf[o + F.OPACITY];
+      if (opacity < 0.004) continue;
+
+      const px = pf[o + F.X];
+      const py = pf[o + F.Y];
+
+      // Quick off-screen cull (wider margin for bokeh draw sizes)
+      const sz = pf[o + F.SIZE];
+      const margin = sz * 4;
+      if (px < -margin || px > w + margin || py < -margin || py > h + margin) continue;
+
+      const ci = pColor[i];
+      const depth = pf[o + F.DEPTH];
+      let tier: number, drawSize: number;
+
+      // Camera DOF stamp selection: layer determines sharpness
+      if (depth > 0.65) {
+        // NEAR / foreground — large soft bokeh glow
+        tier = 3;
+        drawSize = sz * 2.8;
+      } else if (depth > 0.25) {
+        // MID / focal plane — crisp, in-focus
+        if (sz > 1.4) {
+          tier = 2;
+          drawSize = sz * 2.2;
+        } else if (sz > 0.7) {
+          tier = 1;
+          drawSize = sz * 2.2;
+        } else {
+          tier = 0;
+          drawSize = sz * 2.4;
+        }
+      } else {
+        // FAR / background — small sharp dots
+        if (sz > 0.6) {
+          tier = 1;
+          drawSize = sz * 2.0;
+        } else {
+          tier = 0;
+          drawSize = sz * 2.4;
+        }
+      }
+
+      // Bottom blur: particles in bottom 20% progressively switch to
+      // softer bokeh stamp and grow larger, dissolving the bottom edge.
+      const bottomRatio = py / h;
+      if (bottomRatio > 0.80) {
+        const blur = (bottomRatio - 0.80) / 0.20; // 0→1 toward bottom
+        tier = blur > 0.3 ? 3 : (tier < 2 ? 2 : tier); // shift to softer stamp
+        drawSize *= (1 + blur * 1.2); // grow larger as they go down
+      }
+
+      ctx.globalAlpha = opacity;
+      ctx.drawImage(stamps[ci][tier], px - drawSize * 0.5, py - drawSize * 0.5, drawSize, drawSize);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+
+
+  // -- Dynamic vignette --
+  private drawDynamicVignette(): void {
+    const vc = this.vigCtx;
+    if (!vc) return;
+    const w = this.width, h = this.height;
+    const rc = this.reliefCtx;
+    const rw = this.reliefCanvas.width;
+    const rh = this.reliefCanvas.height;
+
+    // Downscale + blur
+    rc.clearRect(0, 0, rw, rh);
+    rc.filter = 'blur(6px)';
+    rc.drawImage(this.canvasRef.nativeElement, 0, 0, rw, rh);
+    rc.filter = 'none';
+
+    // Amplify (3 passes)
+    rc.globalCompositeOperation = 'lighter';
+    rc.drawImage(this.reliefCanvas, 0, 0);
+    rc.drawImage(this.reliefCanvas, 0, 0);
+    rc.drawImage(this.reliefCanvas, 0, 0);
+    rc.globalCompositeOperation = 'source-over';
+
+    // Paint vignette darkness using cached gradients
+    vc.clearRect(0, 0, w, h);
+    vc.globalCompositeOperation = 'source-over';
+    vc.globalAlpha = 1;
+
+    vc.fillStyle = this.vigMain;
+    vc.fillRect(0, 0, w, h);
+    vc.fillStyle = this.vigBot;
+    vc.fillRect(0, 0, w, h);
+    vc.fillStyle = this.vigTL;
+    vc.fillRect(0, 0, w, h);
+    vc.fillStyle = this.vigBL;
+    vc.fillRect(0, 0, w, h);
+    vc.fillStyle = this.vigBR;
+    vc.fillRect(0, 0, w, h);
+    vc.fillStyle = this.vigLE;
+    vc.fillRect(0, 0, w, h);
+
+    // Erase darkness where particles exist
+    vc.globalCompositeOperation = 'destination-out';
+    vc.imageSmoothingEnabled = true;
+    vc.drawImage(this.reliefCanvas, 0, 0, w, h);
+
+    // Invisible mouse radius: erase vignette darkness around cursor
+    if (this.cursorStrength > 0.005) {
+      const cx = this.cursorSmoothedX;
+      const cy = this.cursorSmoothedY;
+      const r = this.CURSOR_RADIUS;
+      const alpha = this.cursorStrength * 0.55; // max ~55% vignette removal
+      const g = vc.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, `rgba(0,0,0,${alpha})`);
+      g.addColorStop(0.4, `rgba(0,0,0,${alpha * 0.6})`);
+      g.addColorStop(0.7, `rgba(0,0,0,${alpha * 0.2})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      vc.fillStyle = g;
+      vc.beginPath();
+      vc.arc(cx, cy, r, 0, Math.PI * 2);
+      vc.fill();
     }
 
-    // Age all trail points and remove old ones
-    for (let i = this.trail.length - 1; i >= 0; i--) {
-      this.trail[i].age += 0.025;
-      if (this.trail[i].age >= 1) {
-        this.trail.splice(i, 1);
+    vc.globalCompositeOperation = 'source-over';
+    vc.globalAlpha = 1;
+  }
+
+  // =====================================
+  // Stable Fluids (Stam 1999)
+  // =====================================
+
+  private initFluidGrid(): void {
+    const size = (this.FLUID_N + 2) * (this.FLUID_N + 2);
+    this.fluidVx = new Float32Array(size);
+    this.fluidVy = new Float32Array(size);
+    this.fluidVx0 = new Float32Array(size);
+    this.fluidVy0 = new Float32Array(size);
+  }
+
+  private fluidStep(): void {
+    const dt = this.FLUID_DT;
+    const visc = this.FLUID_VISC;
+    let tmp: Float32Array;
+
+    this.fluidAddForce();
+
+    tmp = this.fluidVx; this.fluidVx = this.fluidVx0; this.fluidVx0 = tmp;
+    tmp = this.fluidVy; this.fluidVy = this.fluidVy0; this.fluidVy0 = tmp;
+    this.fluidDiffuse(1, this.fluidVx, this.fluidVx0, visc, dt);
+    this.fluidDiffuse(2, this.fluidVy, this.fluidVy0, visc, dt);
+
+    this.fluidProject(this.fluidVx, this.fluidVy, this.fluidVx0, this.fluidVy0);
+
+    tmp = this.fluidVx; this.fluidVx = this.fluidVx0; this.fluidVx0 = tmp;
+    tmp = this.fluidVy; this.fluidVy = this.fluidVy0; this.fluidVy0 = tmp;
+    this.fluidAdvect(1, this.fluidVx, this.fluidVx0, this.fluidVx0, this.fluidVy0, dt);
+    this.fluidAdvect(2, this.fluidVy, this.fluidVy0, this.fluidVx0, this.fluidVy0, dt);
+
+    this.fluidProject(this.fluidVx, this.fluidVy, this.fluidVx0, this.fluidVy0);
+  }
+
+  private fluidAddForce(): void {
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const mx = this.mouseVx, my = this.mouseVy;
+    const mouseSpeed = Math.sqrt(mx * mx + my * my);
+    if (mouseSpeed < 0.5) return;
+
+    const gi = (this.mouseX / this.width) * N;
+    const gj = (this.mouseY / this.height) * N;
+    const gridR = Math.max(2, this.FLUID_CURSOR_PX / Math.max(this.width, this.height) * N);
+
+    const fx = mx * this.FLUID_FORCE;
+    const fy = my * this.FLUID_FORCE;
+
+    const iMin = Math.max(1, gi - gridR | 0);
+    const iMax = Math.min(N, Math.ceil(gi + gridR));
+    const jMin = Math.max(1, gj - gridR | 0);
+    const jMax = Math.min(N, Math.ceil(gj + gridR));
+    const gridR2 = gridR * gridR;
+    const invR = 1 / gridR;
+
+    for (let j = jMin; j <= jMax; j++) {
+      const dy = j - gj;
+      const dy2 = dy * dy;
+      const base = S * j;
+      for (let i = iMin; i <= iMax; i++) {
+        const dx = i - gi;
+        const dist2 = dx * dx + dy2;
+        if (dist2 > gridR2) continue;
+        const d = 1 - Math.sqrt(dist2) * invR;
+        const falloff = d * d;
+        const idx = i + base;
+        this.fluidVx[idx] += fx * falloff;
+        this.fluidVy[idx] += fy * falloff;
       }
     }
   }
 
-  private drawEtherTrail(ctx: CanvasRenderingContext2D): void {
-    if (this.trail.length < 2) return;
-
-    ctx.save();
-
-    // Draw viscous fluid blobs along the trail
-    for (let i = 0; i < this.trail.length; i++) {
-      const pt = this.trail[i];
-      const life = 1 - pt.age; // 1 = fresh, 0 = faded
-      if (life <= 0) continue;
-
-      // Size grows slightly as it ages (fluid spreading), shrinks at very end
-      const speed = Math.sqrt(pt.vx * pt.vx + pt.vy * pt.vy);
-      const baseSize = 30 + Math.min(speed * 1.5, 40);
-      const size = baseSize * (0.6 + 0.4 * life);
-
-      // Opacity: peaks early then fades out smoothly
-      const fadeIn = Math.min(life / 0.3, 1); // quick fade-in
-      const fadeOut = life * life; // smooth quadratic fade-out
-      const alpha = this.ETHER_OPACITY * fadeIn * fadeOut;
-
-      if (alpha < 0.002) continue;
-
-      // Warm gold radial gradient — viscous fluid glow
-      const g = ctx.createRadialGradient(pt.x, pt.y, 0, pt.x, pt.y, size);
-      g.addColorStop(0, `rgba(219, 148, 67, ${alpha * 1.2})`);
-      g.addColorStop(0.3, `rgba(212, 160, 74, ${alpha})`);
-      g.addColorStop(0.6, `rgba(200, 136, 57, ${alpha * 0.5})`);
-      g.addColorStop(1, 'transparent');
-
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, size, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    // Draw a connecting fluid ribbon between trail points for continuity
-    if (this.trail.length >= 3) {
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.lineWidth = 18;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-
-      for (let i = 0; i < this.trail.length - 1; i++) {
-        const a = this.trail[i];
-        const b = this.trail[i + 1];
-        const lifeA = 1 - a.age;
-        const lifeB = 1 - b.age;
-        const avgLife = (lifeA + lifeB) * 0.5;
-        const alpha = this.ETHER_OPACITY * 0.4 * avgLife * avgLife;
-
-        if (alpha < 0.001) continue;
-
-        ctx.strokeStyle = `rgba(219, 162, 74, ${alpha})`;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
+  private fluidDiffuse(b: number, x: Float32Array, x0: Float32Array, visc: number, dt: number): void {
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const a = visc * dt;
+    const inv = 1 / (1 + 4 * a);
+    for (let k = 0; k < 4; k++) {
+      for (let j = 1; j <= N; j++) {
+        const base = S * j;
+        for (let i = 1; i <= N; i++) {
+          const idx = i + base;
+          x[idx] = (x0[idx] + a * (x[idx - 1] + x[idx + 1] + x[idx - S] + x[idx + S])) * inv;
+        }
       }
-
-      ctx.globalCompositeOperation = 'source-over';
+      this.fluidSetBnd(b, x);
     }
-
-    ctx.restore();
   }
 
-  private drawBottomGlow(ctx: CanvasRenderingContext2D): void {
-    const grad = ctx.createLinearGradient(0, this.height * 0.65, 0, this.height);
-    grad.addColorStop(0, 'transparent');
-    grad.addColorStop(0.3, 'rgba(160, 100, 40, 0.015)');
-    grad.addColorStop(0.55, 'rgba(180, 115, 50, 0.035)');
-    grad.addColorStop(0.8, 'rgba(175, 110, 45, 0.06)');
-    grad.addColorStop(1, 'rgba(170, 105, 40, 0.08)');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, this.height * 0.65, this.width, this.height * 0.35);
+  private fluidAdvect(b: number, d: Float32Array, d0: Float32Array, u: Float32Array, v: Float32Array, dt: number): void {
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const dt0 = dt * N;
+    const nHalf = N + 0.5;
+    for (let j = 1; j <= N; j++) {
+      const base = S * j;
+      for (let i = 1; i <= N; i++) {
+        const idx = i + base;
+        let x = i - dt0 * u[idx];
+        let y = j - dt0 * v[idx];
+        if (x < 0.5) x = 0.5; else if (x > nHalf) x = nHalf;
+        if (y < 0.5) y = 0.5; else if (y > nHalf) y = nHalf;
+        const i0 = x | 0;
+        const j0 = y | 0;
+        const s1 = x - i0;
+        const s0 = 1 - s1;
+        const t1 = y - j0;
+        const t0 = 1 - t1;
+        const b00 = i0 + S * j0;
+        const b01 = b00 + S;
+        d[idx] = s0 * (t0 * d0[b00] + t1 * d0[b01]) + s1 * (t0 * d0[b00 + 1] + t1 * d0[b01 + 1]);
+      }
+    }
+    this.fluidSetBnd(b, d);
   }
 
-  private drawParticle(ctx: CanvasRenderingContext2D, p: Particle): void {
-    ctx.save();
-    ctx.globalAlpha = p.opacity;
+  private fluidProject(u: Float32Array, v: Float32Array, p: Float32Array, div: Float32Array): void {
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const h = 1.0 / N;
+    const h5 = -0.5 * h;
+    const n5 = 0.5 * N;
 
-    if (p.layer === 'near') {
-      // Large bokeh orbs — soft out-of-focus circles
-      const r = p.size;
-      const g = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r);
-      g.addColorStop(0, p.color + '30');
-      g.addColorStop(0.45, p.color + '1a');
-      g.addColorStop(0.75, p.color + '08');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.size > 2.0) {
-      // Medium-large: bright warm core with soft glow halo
-      const haloR = p.size * 2.8;
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, haloR);
-      g.addColorStop(0, '#ffe8c8');
-      g.addColorStop(0.08, p.color);
-      g.addColorStop(0.25, p.color + 'bb');
-      g.addColorStop(0.5, p.color + '44');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, haloR, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.size > 1.0) {
-      // Medium: soft glow dot
-      const glowR = p.size * 2.2;
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
-      g.addColorStop(0, p.color);
-      g.addColorStop(0.3, p.color + 'aa');
-      g.addColorStop(0.65, p.color + '33');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.size > 0.5) {
-      // Small: subtle glow
-      const glowR = p.size * 1.8;
-      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR);
-      g.addColorStop(0, p.color);
-      g.addColorStop(0.5, p.color + '66');
-      g.addColorStop(1, 'transparent');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      // Tiny: simple dot for performance
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
+    for (let j = 1; j <= N; j++) {
+      const base = S * j;
+      for (let i = 1; i <= N; i++) {
+        const idx = i + base;
+        div[idx] = h5 * (u[idx + 1] - u[idx - 1] + v[idx + S] - v[idx - S]);
+        p[idx] = 0;
+      }
+    }
+    this.fluidSetBnd(0, div);
+    this.fluidSetBnd(0, p);
+
+    for (let k = 0; k < 4; k++) {
+      for (let j = 1; j <= N; j++) {
+        const base = S * j;
+        for (let i = 1; i <= N; i++) {
+          const idx = i + base;
+          p[idx] = (div[idx] + p[idx - 1] + p[idx + 1] + p[idx - S] + p[idx + S]) * 0.25;
+        }
+      }
+      this.fluidSetBnd(0, p);
     }
 
-    ctx.restore();
+    for (let j = 1; j <= N; j++) {
+      const base = S * j;
+      for (let i = 1; i <= N; i++) {
+        const idx = i + base;
+        u[idx] -= n5 * (p[idx + 1] - p[idx - 1]);
+        v[idx] -= n5 * (p[idx + S] - p[idx - S]);
+      }
+    }
+    this.fluidSetBnd(1, u);
+    this.fluidSetBnd(2, v);
+  }
+
+  private fluidSetBnd(b: number, x: Float32Array): void {
+    const N = this.FLUID_N;
+    const S = N + 2;
+    const negX = b === 1 ? -1 : 1;
+    const negY = b === 2 ? -1 : 1;
+    const n1 = N + 1;
+    for (let i = 1; i <= N; i++) {
+      const si = S * i;
+      x[si] = negX * x[1 + si];
+      x[n1 + si] = negX * x[N + si];
+      x[i] = negY * x[i + S];
+      x[i + S * n1] = negY * x[i + S * N];
+    }
+    x[0] = 0.5 * (x[1] + x[S]);
+    x[n1] = 0.5 * (x[N] + x[n1 + S]);
+    x[S * n1] = 0.5 * (x[1 + S * n1] + x[S * N]);
+    x[n1 + S * n1] = 0.5 * (x[N + S * n1] + x[n1 + S * N]);
   }
 }

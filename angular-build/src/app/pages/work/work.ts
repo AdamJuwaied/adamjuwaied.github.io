@@ -62,7 +62,7 @@ export class Work implements AfterViewInit, OnDestroy {
   private readonly RADIUS_MIN = 0.006;
   private readonly RADIUS_MAX = 0.016;
   private readonly BASE_VELOCITY = 0.0004;
-  private readonly HEX_COLORS = ['#3c67e3', '#c0ddff', '#5ddcff', '#90a4bc'];
+  private readonly HEX_COLORS = ['#d4a04a', '#b87a34', '#c9873b', '#9e6e2a'];
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -218,8 +218,8 @@ export class Work implements AfterViewInit, OnDestroy {
     tree.style.setProperty('--bandTopPx',    `${topPx.toFixed(1)}px`);
     tree.style.setProperty('--bandBottomPx', `${bottomPx.toFixed(1)}px`);
     tree.style.setProperty('--bandOpacity',  '1');
-    tree.style.setProperty('--leadColor',    downward ? '#3c67e3' : '#5ddcff');
-    tree.style.setProperty('--trailColor',   downward ? '#5ddcff' : '#3c67e3');
+    tree.style.setProperty('--leadColor',    downward ? '#d4a55a' : '#e8c07a');
+    tree.style.setProperty('--trailColor',   downward ? '#e8c07a' : '#d4a55a');
   }
 
   // ── Balls Canvas ──

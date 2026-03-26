@@ -1,94 +1,150 @@
 :host {
   display: block;
+  // min-height: 100vh;
 }
 
-:root {
-  --fluid-min-width: 320;
-  --fluid-max-width: 1920;
-  --fluid-screen: 100vw;
-  --fluid-bp: calc((var(--fluid-screen) - var(--fluid-min-width) / 16 * 1rem) / (var(--fluid-max-width) - var(--fluid-min-width)));
-}
-
-.container {
-  width: 75vw;
-  height: 25vh;
-  background-color: #141414;
+.contact-page {
   position: relative;
-  left: 50vw;
-  top: 40vh;
-  transform: translate(-50%, -50%);
-  border-radius: 30px;
-  opacity: .75;
-  backdrop-filter: blur(5px);
+  z-index: 1;
+  // min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 24px 80px;
 }
 
-.information {
-  position: absolute;
-  top: 39%;
-  left: 60%;
-  transform: translate(-50%, -50%);
+.contact-heading {
+  text-align: center;
+  margin-bottom: 48px;
 }
 
-#screen_bg_blur {
-  left: 50vw;
-  top: 36vh;
-  width: 75vw;
-  height: 75vh;
-  transform: translate(-50%, -50%);
-  padding: 1rem;
-  border-radius: 30px;
-  background-color: #141414a7;
-  -webkit-backdrop-filter: blur(20px);
-  -o-backdrop-filter: blur(20px);
-  -moz-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  z-index: 20;
+.contact-title {
+  font-family: 'Roboto Mono', monospace;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0 0 8px;
 }
 
-.form__input {
-  width: 80vw;
-  height: 13vh;
-  border: none;
-  border-radius: 1rem;
+.contact-subtitle {
+  font-family: 'Roboto Mono', monospace;
   font-size: 1rem;
-  background: none;
-  font-family: inherit;
-  left: 50%;
-  padding-top: 50px;
-  top: 40%;
+  color: rgba(232, 192, 122, 0.5);
+  margin: 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-#name,
-#email,
-#subject {
-  width: 80%;
-  height: 7vh;
-  font-family: 'Roboto Mono', monospace;
-  font-size: 2rem;
+.contact-form-container {
+  width: 100%;
+  max-width: 580px;
+  background: rgba(26, 6, 28, 0.5);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(212, 165, 90, 0.1);
   border-radius: 20px;
-  border: none;
-  background-color: #000000;
-  color: #e1e1e1;
-  padding-left: 12px;
-  overflow-wrap: break-word;
+  padding: 48px 40px;
 }
 
-#Message {
-  top: 65%;
-  width: 80%;
-  height: 12vh;
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-field input,
+.form-field textarea {
+  width: 100%;
+  background: rgba(13, 4, 16, 0.55);
+  border: 1px solid rgba(212, 165, 90, 0.12);
+  border-radius: 12px;
+  padding: 16px 20px;
   font-family: 'Roboto Mono', monospace;
-  font-size: 2rem;
-  border-radius: 20px;
-  border: none;
-  background-color: #000000;
-  color: #e1e1e1;
-  padding-left: 12px;
-  overflow-wrap: break-word;
+  font-size: 0.95rem;
+  color: #e8dcc8;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+
+  &::placeholder {
+    color: rgba(201, 165, 90, 0.3);
+  }
+
+  &:focus {
+    border-color: rgba(212, 165, 90, 0.35);
+    box-shadow: 0 0 24px rgba(212, 165, 90, 0.06);
+  }
 }
 
-[type="submit"] {
-  width: 80%;
-  height: 10vh;
-  transform: translate(-62%, -120%);
+.form-field textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.contact-submit {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(212, 165, 90, 0.14), rgba(184, 122, 52, 0.22));
+  border: 1px solid rgba(212, 165, 90, 0.28);
+  border-radius: 12px;
+  color: var(--gold);
+  font-family: 'Roboto Mono', monospace;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: linear-gradient(135deg, rgba(212, 165, 90, 0.22), rgba(184, 122, 52, 0.32));
+    border-color: rgba(212, 165, 90, 0.45);
+    box-shadow: 0 0 30px rgba(212, 165, 90, 0.1);
+    color: var(--gold-hover);
+  }
+}
+
+// ─── Tablet ───
+@media screen and (max-width: 768px) {
+  .contact-page {
+    padding: 100px 20px 60px;
+  }
+
+  .contact-title {
+    font-size: 2rem;
+  }
+
+  .contact-form-container {
+    padding: 36px 28px;
+  }
+}
+
+// ─── Mobile ───
+@media screen and (max-width: 480px) {
+  .contact-page {
+    padding: 90px 16px 40px;
+  }
+
+  .contact-title {
+    font-size: 1.6rem;
+  }
+
+  .contact-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .contact-form-container {
+    padding: 28px 20px;
+    border-radius: 16px;
+  }
+
+  .form-field input,
+  .form-field textarea {
+    padding: 14px 16px;
+    font-size: 0.88rem;
+  }
+
+  .contact-submit {
+    padding: 14px;
+    font-size: 0.95rem;
+  }
 }
