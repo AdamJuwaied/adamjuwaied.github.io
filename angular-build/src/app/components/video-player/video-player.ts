@@ -6,6 +6,7 @@ import {
   PLATFORM_ID,
   Inject,
   AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 import { isPlatformBrowser, CommonModule } from '@angular/common';
 
@@ -16,15 +17,18 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
   templateUrl: './video-player.html',
   styleUrl: './video-player.scss',
 })
-export class VideoPlayer implements AfterViewInit {
+export class VideoPlayer implements AfterViewInit, OnDestroy {
   @Input({ required: true }) src!: string;
   @Input() title = 'Video';
 
   @ViewChild('videoEl') videoRef!: ElementRef<HTMLVideoElement>;
+  @ViewChild('wrapper') wrapperRef!: ElementRef<HTMLDivElement>;
 
   isPlaying = false;
   thumbnailReady = false;
   private isBrowser: boolean;
+  private observer?: IntersectionObserver;
+  private videoLoaded = false;
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
     this.isBrowser = isPlatformBrowser(platformId);
@@ -32,8 +36,34 @@ export class VideoPlayer implements AfterViewInit {
 
   ngAfterViewInit(): void {
     if (!this.isBrowser) return;
+
+    // Lazy-load: only set src when the wrapper enters (or is near) the viewport
+    this.observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting && !this.videoLoaded) {
+            this.loadVideo();
+            this.observer?.disconnect();
+          }
+        }
+      },
+      { rootMargin: '200px' } // begin loading slightly before the element scrolls into view
+    );
+
+    this.observer.observe(this.wrapperRef.nativeElement);
+  }
+
+  ngOnDestroy(): void {
+    this.observer?.disconnect();
+  }
+
+  private loadVideo(): void {
     const video = this.videoRef?.nativeElement;
     if (!video) return;
+
+    this.videoLoaded = true;
+    video.preload = 'metadata';
+    video.src = this.src;
 
     // Once metadata loads, seek to 1s for a good thumbnail frame
     video.addEventListener('loadedmetadata', () => {
@@ -44,10 +74,17 @@ export class VideoPlayer implements AfterViewInit {
     video.addEventListener('seeked', () => {
       this.thumbnailReady = true;
     });
+
+    video.load();
   }
 
   play(): void {
     const video = this.videoRef.nativeElement;
+    // If play triggered before intersection (e.g. user scrolled fast), load now
+    if (!this.videoLoaded) {
+      this.loadVideo();
+    }
+    video.muted = false;
     video.controls = true;
     video.play();
     this.isPlaying = true;

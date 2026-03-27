@@ -2,6 +2,7 @@
 :host {
   display: block;
   min-height: 100vh;
+  min-height: 100dvh;
   --app-background-base: #3a0e3c;
   --app-background-shadow: rgba(0, 0, 0, 0.95);
   --app-background-highlight: rgba(118, 44, 100, 0.16);
@@ -16,6 +17,16 @@
 .app-shell {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
+}
+
+// Locked full-screen mode (homepage): no scrolling, no touch-scroll conflict
+.app-shell--locked {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  touch-action: none;
+  -ms-touch-action: none;
 }
 
 .app-shell__background {

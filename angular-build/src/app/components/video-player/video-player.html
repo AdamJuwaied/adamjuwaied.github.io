@@ -1,10 +1,10 @@
-<!-- The video IS the thumbnail. preload="metadata" loads just enough for a frame. -->
-<div class="vp-wrapper" [class.playing]="isPlaying">
+<!-- Lazy-loaded video: src set via IntersectionObserver, poster-first approach -->
+<div class="vp-wrapper" [class.playing]="isPlaying" #wrapper>
   <video
     #videoEl
-    [src]="src"
-    preload="metadata"
+    preload="none"
     playsinline
+    muted
     (ended)="onEnded()"
     [class.ready]="thumbnailReady"
   ></video>

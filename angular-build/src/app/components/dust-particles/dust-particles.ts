@@ -2,6 +2,7 @@
   Component,
   ElementRef,
   Inject,
+  Input,
   OnDestroy,
   OnInit,
   PLATFORM_ID,
@@ -64,6 +65,9 @@ const GOLD_PALETTE = [
 export class DustParticles implements OnInit, OnDestroy {
   @ViewChild('canvas', { static: true }) canvasRef!: ElementRef<HTMLCanvasElement>;
   @ViewChild('vignetteCanvas', { static: true }) vigCanvasRef!: ElementRef<HTMLCanvasElement>;
+
+  /** When true, touchmove calls preventDefault to block page scrolling */
+  @Input() lockTouch = false;
 
   private isBrowser: boolean;
   private ctx!: CanvasRenderingContext2D;
@@ -192,7 +196,7 @@ export class DustParticles implements OnInit, OnDestroy {
     window.addEventListener('resize', this.boundResize);
     window.addEventListener('mousemove', this.boundMouseMove);
     window.addEventListener('mouseleave', this.boundMouseLeave);
-    window.addEventListener('touchmove', this.boundTouchMove, { passive: true });
+    window.addEventListener('touchmove', this.boundTouchMove, { passive: false });
     window.addEventListener('touchend', this.boundTouchEnd);
 
     // Allocate SoA arrays
@@ -372,6 +376,9 @@ export class DustParticles implements OnInit, OnDestroy {
   private onMouseLeave(): void { this.mouseActive = false; }
 
   private onTouchMove(e: TouchEvent): void {
+    if (this.lockTouch) {
+      e.preventDefault();
+    }
     if (e.touches.length > 0) {
       this.prevMouseX = this.mouseX;
       this.prevMouseY = this.mouseY;
