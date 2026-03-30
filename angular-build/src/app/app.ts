@@ -25,6 +25,7 @@ export class App {
   protected readonly patternItems = signal<PatternItem[]>([]);
   protected readonly isHomePage = signal(true);
   protected readonly isContactPage = signal(false);
+  protected readonly homeScrollProgress = signal(0);
 
   private readonly isBrowser: boolean;
 
@@ -33,6 +34,11 @@ export class App {
 
     if (this.isBrowser) {
       this.updatePatternGrid();
+
+      // Listen for scroll progress from homepage
+      window.addEventListener('homepage-scroll', ((e: CustomEvent) => {
+        this.homeScrollProgress.set(e.detail.progress);
+      }) as EventListener);
     }
 
     this.router.events
@@ -40,6 +46,10 @@ export class App {
       .subscribe((e) => {
         this.isHomePage.set(e.urlAfterRedirects === '/' || e.urlAfterRedirects === '');
         this.isContactPage.set(e.urlAfterRedirects === '/contact');
+        // Reset scroll progress when navigating away
+        if (e.urlAfterRedirects !== '/' && e.urlAfterRedirects !== '') {
+          this.homeScrollProgress.set(0);
+        }
       });
   }
 

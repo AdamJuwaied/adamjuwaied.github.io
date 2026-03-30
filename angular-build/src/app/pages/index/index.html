@@ -1,6 +1,24 @@
-<section class="index-page">
-	<div class="index-page__logo">
-		<img src="/images/AdamJuwaied.png" alt="Adam Juwaied" class="index-page__logo-img" />
-		<img src="/images/ADAMJSHADOW.png" class="index-page__logo-img-shadow" />
-	</div>
-</section>
+<div class="index-scroll-track" #scrollContainer>
+	<!-- Zone 1: Hero — first viewport, logo centered -->
+	<section class="index-page index-page--hero">
+		<div class="index-page__logo" [style.opacity]="1 - scrollProgress() * 3.3" [style.transform]="'translate(-50%, ' + (-50 - scrollProgress() * 80) + '%)'">
+			<img src="/images/AdamJuwaied.png" alt="Adam Juwaied" class="index-page__logo-img" />
+			<img src="/images/ADAMJSHADOW.png" class="index-page__logo-img-shadow" />
+		</div>
+	</section>
+
+	<!-- Zone 2: Transition spacer — particles rise, darken, spread -->
+	<section class="index-page index-page--transition"></section>
+
+	<!-- Zone 3: Reveal — content appears inside particle-framed void -->
+	<section class="index-page index-page--reveal">
+		<div class="index-reveal" [style.opacity]="scrollProgress() > 0.6 ? (scrollProgress() - 0.6) / 0.25 : 0">
+			<p class="index-reveal__tagline">DESIGN. CODE. CRAFT.</p>
+			<h2 class="index-reveal__heading">Building digital experiences<br />that feel alive.</h2>
+			<p class="index-reveal__sub">Scroll to explore my work</p>
+		</div>
+	</section>
+
+	<!-- Zone 4: Extra breathing room -->
+	<section class="index-page index-page--outro"></section>
+</div>

@@ -69,6 +69,9 @@ export class DustParticles implements OnInit, OnDestroy {
   /** When true, touchmove calls preventDefault to block page scrolling */
   @Input() lockTouch = false;
 
+  /** Scroll progress from homepage: 0 = top, 1 = fully scrolled */
+  @Input() scrollProgress = 0;
+
   private isBrowser: boolean;
   private ctx!: CanvasRenderingContext2D;
   private vigCtx!: CanvasRenderingContext2D;
@@ -82,6 +85,24 @@ export class DustParticles implements OnInit, OnDestroy {
   private pKind!: Uint8Array;      // KIND enum
   private pColor!: Uint8Array;     // index into GOLD_PALETTE
   private pCount = 0;
+
+  // Pre-computed spread targets (computed once at init, O(1) per frame)
+  // 2 floats per particle: [targetX_norm, targetY_norm] in 0..1 range
+  private pSpreadTarget!: Float32Array;
+  // Original (home) anchor positions — stored once at init so we can reset
+  private pOrigAnchorX!: Float32Array;
+  private pOrigAnchorY!: Float32Array;
+  // Pre-computed Chebyshev edgeness per particle (0=center, 1=edge)
+  private pEdgeness!: Float32Array;
+
+  // Current spread factor per-frame (0=home, 1=fully spread). Lerped smoothly.
+  private anchorSpread = 0;
+  // Inactivity reset: after 10s of no interaction, particles drift home
+  private lastInteractionTime = 0;
+  private readonly INACTIVITY_TIMEOUT = 10000; // ms
+  private inactivityResetActive = false;
+
+  private isMobile = false;
 
   // Layer bucket indices (pre-sorted, rebuilt only on particle creation)
   private farIdx!: Uint16Array;
@@ -113,8 +134,8 @@ export class DustParticles implements OnInit, OnDestroy {
   private mouseActive = false;
   private mouseLastMoveTime = 0;
 
-  // -- Stable Fluids grid --
-  private readonly FLUID_N = 48;
+  // -- Stable Fluids grid (smaller on mobile) --
+  private FLUID_N = 48;
   private readonly FLUID_DT = 0.016;
   private readonly FLUID_VISC = 30;
   private readonly FLUID_FORCE = 0.08;
@@ -144,6 +165,9 @@ export class DustParticles implements OnInit, OnDestroy {
   private bp2x = 0; private bp2y = 0;
   private bp3x = 0; private bp3y = 0;
 
+  // Scroll-driven transition state (smoothed)
+  private smoothScrollProgress = 0;
+
   private boundResize!: () => void;
   private boundMouseMove!: (e: MouseEvent) => void;
   private boundMouseLeave!: () => void;
@@ -151,13 +175,13 @@ export class DustParticles implements OnInit, OnDestroy {
   private boundTouchEnd!: () => void;
 
   private get flowCount(): number {
-    if (this.width < 480) return 180;
-    if (this.width < 768) return 320;
+    if (this.isMobile) return 60;
+    if (this.width < 768) return 200;
     return 500;
   }
   private get settledCount(): number {
-    if (this.width < 480) return 2000;
-    if (this.width < 768) return 3500;
+    if (this.isMobile) return 800;
+    if (this.width < 768) return 2200;
     return 5500;
   }
 
@@ -167,6 +191,13 @@ export class DustParticles implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     if (!this.isBrowser) return;
+
+    // Detect mobile early — affects particle counts + fluid grid
+    this.isMobile = window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
+    if (this.isMobile) {
+      this.FLUID_N = 24; // smaller grid on mobile
+    }
+
     const canvas = this.canvasRef.nativeElement;
     const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
@@ -183,7 +214,7 @@ export class DustParticles implements OnInit, OnDestroy {
     // Pre-render particle stamps
     this.buildStamps();
 
-    this.dpr = Math.min(window.devicePixelRatio, 1.5);
+    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 1.0 : 1.5);
     this.onResize();
     this.initFluidGrid();
 
@@ -205,6 +236,10 @@ export class DustParticles implements OnInit, OnDestroy {
     this.pLayer = new Uint8Array(total);
     this.pKind = new Uint8Array(total);
     this.pColor = new Uint8Array(total);
+    this.pSpreadTarget = new Float32Array(total * 2);
+    this.pOrigAnchorX = new Float32Array(total);
+    this.pOrigAnchorY = new Float32Array(total);
+    this.pEdgeness = new Float32Array(total);
     this.pCount = total;
 
     // Layer bucket index arrays
@@ -221,6 +256,9 @@ export class DustParticles implements OnInit, OnDestroy {
     }
 
     this.rebuildLayerBuckets();
+    this.storeOriginalAnchors();
+    this.precomputeSpreadTargets();
+    this.lastInteractionTime = performance.now();
     this.animate(0);
   }
 
@@ -371,6 +409,8 @@ export class DustParticles implements OnInit, OnDestroy {
     this.mouseY = e.clientY;
     this.mouseActive = true;
     this.mouseLastMoveTime = performance.now();
+    this.lastInteractionTime = performance.now();
+    this.inactivityResetActive = false;
   }
 
   private onMouseLeave(): void { this.mouseActive = false; }
@@ -386,6 +426,8 @@ export class DustParticles implements OnInit, OnDestroy {
       this.mouseY = e.touches[0].clientY;
       this.mouseActive = true;
       this.mouseLastMoveTime = performance.now();
+      this.lastInteractionTime = performance.now();
+      this.inactivityResetActive = false;
     }
   }
 
@@ -638,9 +680,44 @@ export class DustParticles implements OnInit, OnDestroy {
     const w = this.width, h = this.height;
     ctx.clearRect(0, 0, w, h);
 
+    // Smooth scroll progress — faster return to 0 for snappy scroll-back reset
+    const prevSp = this.smoothScrollProgress;
+    const scrollLerp = this.scrollProgress < this.smoothScrollProgress ? 0.18 : 0.12;
+    this.smoothScrollProgress += (this.scrollProgress - this.smoothScrollProgress) * scrollLerp;
+    const sp = this.smoothScrollProgress;
+
+    // Detect scroll changes as interaction
+    if (Math.abs(sp - prevSp) > 0.001) {
+      this.lastInteractionTime = performance.now();
+      this.inactivityResetActive = false;
+    }
+
+    // -- Anchor spread: smoothly transition particle anchors between home and spread --
+    // Target spread: scroll determines where anchors should be (0=home, 1=spread)
+    let targetSpread = sp < 0.005 ? 0 : (sp > 0.25 ? 1 : sp / 0.25);
+
+    // Inactivity reset: after 10s of no interaction, drift anchors back to home
+    const now = performance.now();
+    if (now - this.lastInteractionTime > this.INACTIVITY_TIMEOUT) {
+      this.inactivityResetActive = true;
+    }
+    if (this.inactivityResetActive) {
+      targetSpread = 0;
+    }
+
+    // Smooth the anchor spread (fluid not jumpy)
+    const spreadLerp = targetSpread < this.anchorSpread ? 0.025 : 0.04;
+    this.anchorSpread += (targetSpread - this.anchorSpread) * spreadLerp;
+    // Snap to exactly 0 or 1 when very close to avoid permanent micro-drift
+    if (this.anchorSpread < 0.001) this.anchorSpread = 0;
+    else if (this.anchorSpread > 0.999) this.anchorSpread = 1;
+
+    // -- Update anchors for settled particles based on current spread --
+    this.updateAnchors();
+
     // Smooth cursor position for invisible vignette brightening
     const lerpRate = 0.12;
-    const timeSinceMove = performance.now() - this.mouseLastMoveTime;
+    const timeSinceMove = now - this.mouseLastMoveTime;
     if (this.cursorSmoothedX < -9000) {
       this.cursorSmoothedX = this.mouseX;
       this.cursorSmoothedY = this.mouseY;
@@ -663,19 +740,22 @@ export class DustParticles implements OnInit, OnDestroy {
       this.mouseVy *= 0.92;
     }
 
-    // Fluid sim
-    this.fluidStep();
+    // Fluid sim — always run so particles stay interactable
+    if (!this.isMobile || this.mouseActive) {
+      this.fluidStep();
+    }
 
     // Update all particles (single pass)
     this.updateParticles();
 
-    // Draw back-to-front using pre-sorted layer buckets
+    // Draw back-to-front (no spread lerp in draw — anchors handle it)
     this.drawBucket(ctx, this.farIdx, this.farCount);
     this.drawBucket(ctx, this.midIdx, this.midCount);
     this.drawBucket(ctx, this.nearIdx, this.nearCount);
 
-    // Dynamic vignette (every other frame for perf)
-    if (this.frameCount & 1) {
+    // Dynamic vignette (every 3rd frame on mobile, every 2nd on desktop)
+    const vigInterval = this.isMobile ? 3 : 2;
+    if (this.frameCount % vigInterval === 0) {
       this.drawDynamicVignette();
     }
 
@@ -699,6 +779,12 @@ export class DustParticles implements OnInit, OnDestroy {
     const fvy = this.fluidVy;
     const invW = N / w;
     const invH = N / h;
+
+    // Scroll-driven displacement parameters
+    const sp = this.smoothScrollProgress;
+    const aSpread = this.anchorSpread;
+    // Opacity boost for the transition (particles become more visible as they spread)
+    const transitionOpacityBoost = aSpread < 0.03 ? 0 : (aSpread > 0.8 ? 0.5 : aSpread / 0.8 * 0.5);
 
     for (let i = 0; i < n; i++) {
       const o = i * F._COUNT;
@@ -757,16 +843,17 @@ export class DustParticles implements OnInit, OnDestroy {
       let vx = pf[o + F.VX] + flVx * fluidToPixel * coupling;
       let vy = pf[o + F.VY] + flVy * fluidToPixel * coupling;
 
-      // Soft containment
+      // Soft containment / spring return to anchor
       if (kind === KIND.SETTLED) {
-        const dx = px - pf[o + F.AX];
-        const dy = py - pf[o + F.AY];
-        const dd = Math.sqrt(dx * dx + dy * dy);
-        if (dd > 150) {
-          const pull = 0.004 * ((dd - 150) / 150);
-          vx -= dx * pull;
-          vy -= dy * pull;
-        }
+        const ax = pf[o + F.AX];
+        const ay = pf[o + F.AY];
+        const dx = px - ax;
+        const dy = py - ay;
+        // Spring force: always pulls toward anchor, strength scales with distance
+        // Stronger pull = particles settle faster at new anchor after spread
+        const rr = pf[o + F.RETURN_RATE];
+        vx -= dx * rr;
+        vy -= dy * rr;
       } else {
         const rr = pf[o + F.RETURN_RATE] * 0.3;
         vx += (pf[o + F.AX] - px) * rr;
@@ -808,12 +895,96 @@ export class DustParticles implements OnInit, OnDestroy {
       const displaceFade = 1 - (vel * 0.04 < 0.35 ? vel * 0.04 : 0.35);
 
       const flicker = 0.65 + 0.35 * Math.sin(time * pf[o + F.FLICKER_SPEED] + phase);
-      const targetOp = pf[o + F.BASE_OPACITY] * envelope * flicker * displaceFade;
-      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * 0.08;
+      let targetOp = pf[o + F.BASE_OPACITY] * envelope * flicker * displaceFade;
+
+      // Spread-driven opacity modifiers
+      if (aSpread > 0.01) {
+        // Boost opacity during spread so particles are visible across the full viewport
+        targetOp *= (1 + transitionOpacityBoost);
+
+        // Center-clear: use pre-computed edgeness (O(1) lookup per particle)
+        // edgeFrame ramps from 0→1 as spread goes from 0.5→1.0
+        const edgeFrame = aSpread < 0.5 ? 0 : (aSpread > 0.95 ? 1 : (aSpread - 0.5) / 0.45);
+        if (edgeFrame > 0) {
+          const edgeness = this.pEdgeness[i];
+          // Particles in inner 40% of screen fade out, outer ones stay
+          const centerFade = edgeness < 0.40 ? edgeness / 0.40 : 1;
+          targetOp *= 1 - edgeFrame * (1 - centerFade);
+        }
+      }
+
+      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * (aSpread < 0.02 ? 0.18 : 0.08);
+    }
+  }
+
+  // -- Smoothly lerp particle anchors between home and spread positions --
+  // This runs every frame but is O(n) only on the anchor arrays (cache-friendly).
+  // The anchorSpread value is already smoothed in the animate loop.
+  private updateAnchors(): void {
+    const pf = this.pFloat;
+    const pKind = this.pKind;
+    const n = this.pCount;
+    const spread = this.anchorSpread;
+    const st = this.pSpreadTarget;
+    const origX = this.pOrigAnchorX;
+    const origY = this.pOrigAnchorY;
+    const w = this.width, h = this.height;
+
+    for (let i = 0; i < n; i++) {
+      if (pKind[i] !== KIND.SETTLED) continue;
+      const o = i * F._COUNT;
+      // Lerp anchor between original home position and spread target
+      const homeX = origX[i];
+      const homeY = origY[i];
+      const spreadX = st[i * 2] * w;
+      const spreadY = st[i * 2 + 1] * h;
+      pf[o + F.AX] = homeX + (spreadX - homeX) * spread;
+      pf[o + F.AY] = homeY + (spreadY - homeY) * spread;
+    }
+  }
+
+  // -- Store original anchor positions so we can reset after spread --
+  private storeOriginalAnchors(): void {
+    const pf = this.pFloat;
+    const n = this.pCount;
+    for (let i = 0; i < n; i++) {
+      const o = i * F._COUNT;
+      this.pOrigAnchorX[i] = pf[o + F.AX];
+      this.pOrigAnchorY[i] = pf[o + F.AY];
+    }
+  }
+
+  // -- Pre-compute spread targets + edgeness at init (O(n) once, O(1) per frame) --
+  // This eliminates the per-frame updateScrollOffsets() O(n) loop.
+  // Each particle gets a deterministic target position (normalized 0..1)
+  // and a pre-computed Chebyshev edgeness for center-clear opacity.
+  private precomputeSpreadTargets(): void {
+    const n = this.pCount;
+    const st = this.pSpreadTarget;
+    const pe = this.pEdgeness;
+
+    for (let i = 0; i < n; i++) {
+      // Math.random() at init — truly uncorrelated X/Y, runs once so perf is fine
+      const rx = Math.random();
+      const ry = Math.random();
+
+      // Slight overshoot beyond viewport so particles cover the very edges
+      st[i * 2]     = rx * 1.06 - 0.03; // -0.03..1.03
+      st[i * 2 + 1] = ry * 1.06 - 0.03;
+
+      // Pre-compute Chebyshev distance from center for this target position
+      // 0 = dead center, 1 = edge/corner
+      const normX = Math.abs(rx - 0.5) * 2; // 0..1
+      const normY = Math.abs(ry - 0.5) * 2; // 0..1
+      pe[i] = normX > normY ? normX : normY;
     }
   }
 
   // -- Draw a bucket of particles using pre-rendered stamps --
+  // Spread offsets and center-clear are computed inline here.
+  // Since we must iterate all visible particles for Canvas2D drawImage
+  // anyway, this adds zero extra loops. The scroll progress `sp` is
+  // a single float → O(1) scroll cost per frame.
   private drawBucket(ctx: CanvasRenderingContext2D, indices: Uint16Array, count: number): void {
     const pf = this.pFloat;
     const pColor = this.pColor;
@@ -891,19 +1062,22 @@ export class DustParticles implements OnInit, OnDestroy {
     const rc = this.reliefCtx;
     const rw = this.reliefCanvas.width;
     const rh = this.reliefCanvas.height;
+    const sp = this.smoothScrollProgress;
 
-    // Downscale + blur
-    rc.clearRect(0, 0, rw, rh);
-    rc.filter = 'blur(6px)';
-    rc.drawImage(this.canvasRef.nativeElement, 0, 0, rw, rh);
-    rc.filter = 'none';
+    // Downscale + blur + amplify relief (skip on mobile — expensive compositing)
+    if (!this.isMobile) {
+      rc.clearRect(0, 0, rw, rh);
+      rc.filter = 'blur(6px)';
+      rc.drawImage(this.canvasRef.nativeElement, 0, 0, rw, rh);
+      rc.filter = 'none';
 
-    // Amplify (3 passes)
-    rc.globalCompositeOperation = 'lighter';
-    rc.drawImage(this.reliefCanvas, 0, 0);
-    rc.drawImage(this.reliefCanvas, 0, 0);
-    rc.drawImage(this.reliefCanvas, 0, 0);
-    rc.globalCompositeOperation = 'source-over';
+      // Amplify (3 passes)
+      rc.globalCompositeOperation = 'lighter';
+      rc.drawImage(this.reliefCanvas, 0, 0);
+      rc.drawImage(this.reliefCanvas, 0, 0);
+      rc.drawImage(this.reliefCanvas, 0, 0);
+      rc.globalCompositeOperation = 'source-over';
+    }
 
     // Paint vignette darkness using cached gradients
     vc.clearRect(0, 0, w, h);
@@ -923,10 +1097,45 @@ export class DustParticles implements OnInit, OnDestroy {
     vc.fillStyle = this.vigLE;
     vc.fillRect(0, 0, w, h);
 
-    // Erase darkness where particles exist
-    vc.globalCompositeOperation = 'destination-out';
-    vc.imageSmoothingEnabled = true;
-    vc.drawImage(this.reliefCanvas, 0, 0, w, h);
+    // Scroll-driven deepening: progressive darkness that feels atmospheric
+    if (sp > 0.05) {
+      // Darkness intensifies with scroll, max at ~0.7 progress
+      const darkPhase = sp > 0.65 ? 1 : (sp - 0.05) / 0.6;
+      const darkenAlpha = darkPhase * 0.75;
+
+      // Central clearing — shrinks as edge-framing kicks in
+      const edgeProg = sp < 0.25 ? 0 : (sp > 0.7 ? 1 : (sp - 0.25) / 0.45);
+      const clearRadius = edgeProg > 0
+        ? Math.max(w, h) * (0.15 + (1 - edgeProg) * 0.25)
+        : Math.max(w, h) * 0.4 * (1 - darkPhase);
+
+      const cx = w * 0.5, cy = h * 0.5;
+      const outerR = Math.max(w, h) * 0.9;
+      const gDark = vc.createRadialGradient(cx, cy, clearRadius, cx, cy, outerR);
+      gDark.addColorStop(0, `rgba(0,0,0,0)`);
+      gDark.addColorStop(0.3, `rgba(0,0,0,${darkenAlpha * 0.3})`);
+      gDark.addColorStop(0.6, `rgba(0,0,0,${darkenAlpha * 0.65})`);
+      gDark.addColorStop(1, `rgba(0,0,0,${darkenAlpha * 0.95})`);
+      vc.fillStyle = gDark;
+      vc.fillRect(0, 0, w, h);
+
+      // Additional uniform darkness layer for deep scroll
+      if (darkPhase > 0.4) {
+        const deepAlpha = (darkPhase - 0.4) / 0.6 * 0.5;
+        vc.fillStyle = `rgba(0,0,0,${deepAlpha})`;
+        vc.fillRect(0, 0, w, h);
+      }
+    }
+
+    // Erase darkness where particles exist (skip on mobile — expensive compositing)
+    if (!this.isMobile) {
+      vc.globalCompositeOperation = 'destination-out';
+      vc.imageSmoothingEnabled = true;
+      const reliefAlpha = sp > 0.1 ? Math.max(0.15, 1 - sp * 1.2) : 1;
+      vc.globalAlpha = reliefAlpha;
+      vc.drawImage(this.reliefCanvas, 0, 0, w, h);
+      vc.globalAlpha = 1;
+    }
 
     // Invisible mouse radius: erase vignette darkness around cursor
     if (this.cursorStrength > 0.005) {

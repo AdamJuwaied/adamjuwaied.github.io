@@ -20,15 +20,6 @@
   min-height: 100dvh;
 }
 
-// Locked full-screen mode (homepage): no scrolling, no touch-scroll conflict
-.app-shell--locked {
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  touch-action: none;
-  -ms-touch-action: none;
-}
-
 .app-shell__background {
   position: fixed;
   inset: 0;
