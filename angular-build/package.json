@@ -41,6 +41,7 @@
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
     "@types/three": "^0.182.0",
+    "puppeteer": "^24.40.0",
     "typescript": "~5.9.2"
   }
 }

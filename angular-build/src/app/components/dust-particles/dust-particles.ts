@@ -13,10 +13,14 @@ import { isPlatformBrowser } from '@angular/common';
 // -- SoA (Structure of Arrays) particle storage --
 // Contiguous Float32Arrays for hot-path fields -> cache-friendly, zero GC.
 const enum F {
-  X, Y, AX, AY, VX, VY,
+  X, Y, VX, VY,
+  // FLOW: smoothed bezier anchor; SETTLED: initial zone position (gravity reference)
+  BASE_X, BASE_Y,
   SIZE, OPACITY, BASE_OPACITY,
   FLICKER_SPEED, FLICKER_PHASE,
-  T, SPEED, SCATTER, RETURN_RATE,
+  T, SPEED, SCATTER,
+  // FLOW: spring return rate; SETTLED: active cooldown (frames)
+  RATE,
   DEPTH,
   _COUNT,
 }
@@ -86,21 +90,14 @@ export class DustParticles implements OnInit, OnDestroy {
   private pColor!: Uint8Array;     // index into GOLD_PALETTE
   private pCount = 0;
 
-  // Pre-computed spread targets (computed once at init, O(1) per frame)
-  // 2 floats per particle: [targetX_norm, targetY_norm] in 0..1 range
-  private pSpreadTarget!: Float32Array;
-  // Original (home) anchor positions — stored once at init so we can reset
-  private pOrigAnchorX!: Float32Array;
-  private pOrigAnchorY!: Float32Array;
-  // Pre-computed Chebyshev edgeness per particle (0=center, 1=edge)
-  private pEdgeness!: Float32Array;
+  // Per-particle active mask: 0 = passive (cheap procedural), 1 = active (full physics)
+  private pActive!: Uint8Array;
 
-  // Current spread factor per-frame (0=home, 1=fully spread). Lerped smoothly.
-  private anchorSpread = 0;
-  // Inactivity reset: after 10s of no interaction, particles drift home
+  // Global scroll-driven field strength (0 = rest / bottom band, 1 = fully dispersed)
+  private globalScrollField = 0;
+  // Activity multiplier: decays after inactivity, weakening the scroll field
+  private activityMultiplier = 1;
   private lastInteractionTime = 0;
-  private readonly INACTIVITY_TIMEOUT = 10000; // ms
-  private inactivityResetActive = false;
 
   private isMobile = false;
 
@@ -236,10 +233,7 @@ export class DustParticles implements OnInit, OnDestroy {
     this.pLayer = new Uint8Array(total);
     this.pKind = new Uint8Array(total);
     this.pColor = new Uint8Array(total);
-    this.pSpreadTarget = new Float32Array(total * 2);
-    this.pOrigAnchorX = new Float32Array(total);
-    this.pOrigAnchorY = new Float32Array(total);
-    this.pEdgeness = new Float32Array(total);
+    this.pActive = new Uint8Array(total);
     this.pCount = total;
 
     // Layer bucket index arrays
@@ -256,8 +250,6 @@ export class DustParticles implements OnInit, OnDestroy {
     }
 
     this.rebuildLayerBuckets();
-    this.storeOriginalAnchors();
-    this.precomputeSpreadTargets();
     this.lastInteractionTime = performance.now();
     this.animate(0);
   }
@@ -410,7 +402,7 @@ export class DustParticles implements OnInit, OnDestroy {
     this.mouseActive = true;
     this.mouseLastMoveTime = performance.now();
     this.lastInteractionTime = performance.now();
-    this.inactivityResetActive = false;
+    this.activityMultiplier = 1;
   }
 
   private onMouseLeave(): void { this.mouseActive = false; }
@@ -427,7 +419,7 @@ export class DustParticles implements OnInit, OnDestroy {
       this.mouseActive = true;
       this.mouseLastMoveTime = performance.now();
       this.lastInteractionTime = performance.now();
-      this.inactivityResetActive = false;
+      this.activityMultiplier = 1;
     }
   }
 
@@ -570,17 +562,13 @@ export class DustParticles implements OnInit, OnDestroy {
       : layer === LAYER.MID ? 0.8 + Math.random() * 2.0
       : 1.2 + Math.random() * 2.5;
 
-    const returnRate = layer === LAYER.NEAR ? 0.006 + Math.random() * 0.006
-      : layer === LAYER.MID ? 0.025 + Math.random() * 0.025
-      : 0.040 + Math.random() * 0.040;
-
     const pf = this.pFloat;
     pf[o + F.X] = x;
     pf[o + F.Y] = y;
-    pf[o + F.AX] = x;
-    pf[o + F.AY] = y;
     pf[o + F.VX] = 0;
     pf[o + F.VY] = 0;
+    pf[o + F.BASE_X] = x;
+    pf[o + F.BASE_Y] = y;
     pf[o + F.SIZE] = size;
     pf[o + F.OPACITY] = baseOpacity * Math.random();
     pf[o + F.BASE_OPACITY] = baseOpacity;
@@ -589,7 +577,7 @@ export class DustParticles implements OnInit, OnDestroy {
     pf[o + F.T] = 0;
     pf[o + F.SPEED] = 0;
     pf[o + F.SCATTER] = 0;
-    pf[o + F.RETURN_RATE] = returnRate;
+    pf[o + F.RATE] = 0; // active cooldown (0 = passive)
     pf[o + F.DEPTH] = depth;
 
     this.pLayer[i] = layer;
@@ -639,8 +627,8 @@ export class DustParticles implements OnInit, OnDestroy {
     const pf = this.pFloat;
     pf[o + F.X] = px;
     pf[o + F.Y] = py;
-    pf[o + F.AX] = px;
-    pf[o + F.AY] = py;
+    pf[o + F.BASE_X] = px;
+    pf[o + F.BASE_Y] = py;
     pf[o + F.VX] = 0;
     pf[o + F.VY] = 0;
     pf[o + F.SIZE] = size;
@@ -651,7 +639,7 @@ export class DustParticles implements OnInit, OnDestroy {
     pf[o + F.T] = t;
     pf[o + F.SPEED] = speed;
     pf[o + F.SCATTER] = scatter;
-    pf[o + F.RETURN_RATE] = returnRate;
+    pf[o + F.RATE] = returnRate;
     pf[o + F.DEPTH] = 0;
 
     this.pLayer[i] = layer;
@@ -682,38 +670,29 @@ export class DustParticles implements OnInit, OnDestroy {
 
     // Smooth scroll progress — faster return to 0 for snappy scroll-back reset
     const prevSp = this.smoothScrollProgress;
-    const scrollLerp = this.scrollProgress < this.smoothScrollProgress ? 0.18 : 0.12;
+    const scrollLerp = this.scrollProgress < this.smoothScrollProgress ? 0.22 : 0.18;
     this.smoothScrollProgress += (this.scrollProgress - this.smoothScrollProgress) * scrollLerp;
     const sp = this.smoothScrollProgress;
+
+    // -- Particle bloom: derive from the shared localProgress (scrollProgress input) --
+    // Sub-range: particles spread from 0.10 → 0.85 of the unified progress.
+    const particleRaw = sp < 0.10 ? 0 : (sp > 0.85 ? 1 : (sp - 0.10) / 0.75);
+    // Ease-out cubic for front-loaded decisive bloom
+    const pri = 1 - particleRaw;
+    const heroBloom = 1 - pri * pri * pri;
 
     // Detect scroll changes as interaction
     if (Math.abs(sp - prevSp) > 0.001) {
       this.lastInteractionTime = performance.now();
-      this.inactivityResetActive = false;
+      this.activityMultiplier = 1;
     }
 
-    // -- Anchor spread: smoothly transition particle anchors between home and spread --
-    // Target spread: scroll determines where anchors should be (0=home, 1=spread)
-    let targetSpread = sp < 0.005 ? 0 : (sp > 0.25 ? 1 : sp / 0.25);
+    // -- Global scroll field: heroBloom drives EVERYTHING --
+    // No activityMultiplier decay — once you scroll into the transition,
+    // the final state (spread + vignette) must persist.
+    this.globalScrollField = heroBloom;
 
-    // Inactivity reset: after 10s of no interaction, drift anchors back to home
     const now = performance.now();
-    if (now - this.lastInteractionTime > this.INACTIVITY_TIMEOUT) {
-      this.inactivityResetActive = true;
-    }
-    if (this.inactivityResetActive) {
-      targetSpread = 0;
-    }
-
-    // Smooth the anchor spread (fluid not jumpy)
-    const spreadLerp = targetSpread < this.anchorSpread ? 0.025 : 0.04;
-    this.anchorSpread += (targetSpread - this.anchorSpread) * spreadLerp;
-    // Snap to exactly 0 or 1 when very close to avoid permanent micro-drift
-    if (this.anchorSpread < 0.001) this.anchorSpread = 0;
-    else if (this.anchorSpread > 0.999) this.anchorSpread = 1;
-
-    // -- Update anchors for settled particles based on current spread --
-    this.updateAnchors();
 
     // Smooth cursor position for invisible vignette brightening
     const lerpRate = 0.12;
@@ -762,12 +741,14 @@ export class DustParticles implements OnInit, OnDestroy {
     this.animationId = requestAnimationFrame(this.animate);
   };
 
-  // -- Particle update (single pass, no object allocation) --
+  // -- Particle update: field-driven, split passive/active for settled --
+  // PASSIVE settled: cheap procedural drift + field forces, no velocity integration.
+  // ACTIVE settled: full fluid coupling + overdamped velocity, near cursor only.
+  // FLOW: unchanged path-following system.
   private updateParticles(): void {
     const pf = this.pFloat;
-    const pKind = this.pKind;
     const pLayer = this.pLayer;
-    const n = this.pCount;
+    const pActive = this.pActive;
     const time = this.time;
     const w = this.width, h = this.height;
     const minDim = Math.min(w, h);
@@ -780,49 +761,212 @@ export class DustParticles implements OnInit, OnDestroy {
     const invW = N / w;
     const invH = N / h;
 
-    // Scroll-driven displacement parameters
-    const sp = this.smoothScrollProgress;
-    const aSpread = this.anchorSpread;
-    // Opacity boost for the transition (particles become more visible as they spread)
-    const transitionOpacityBoost = aSpread < 0.03 ? 0 : (aSpread > 0.8 ? 0.5 : aSpread / 0.8 * 0.5);
+    const gField = this.globalScrollField;
+    const oneMinusField = 1 - gField;
+    const frameCount = this.frameCount;
 
-    for (let i = 0; i < n; i++) {
+    // Mouse proximity for activation
+    const mx = this.mouseX, my = this.mouseY;
+    const mouseOn = this.mouseActive;
+    const activationR2 = 180 * 180;
+
+    // Opacity boost during spread
+    const opBoost = gField < 0.03 ? 0 : (gField > 0.6 ? 0.55 : gField / 0.6 * 0.55);
+
+    // -- Spread destination zones per layer --
+    // At gField=1, particles redistribute across layer-specific viewport zones
+    // using per-particle phase as a deterministic hash (uniform, zero storage).
+    // FAR: full viewport (background receding into distance)
+    // MID: broad coverage, slight bottom lean
+    // NEAR: lower portion only (foreground bokeh stays closer)
+    const SPREAD_H_FAR  = 0.40;
+    const SPREAD_H_MID  = 0.28;
+    const SPREAD_H_NEAR = 0.12;
+
+    // Position follow rate: fast enough for decisive bloom, slow enough for organic feel
+    const followRate = 0.09;
+
+    // === SETTLED PARTICLES ===
+    const settled = this.settledCount;
+    for (let i = 0; i < settled; i++) {
       const o = i * F._COUNT;
-      const kind = pKind[i];
       const layer = pLayer[i];
+      const depth = pf[o + F.DEPTH];
+      const phase = pf[o + F.FLICKER_PHASE];
 
-      // -- Update anchor for flow particles --
-      if (kind === KIND.FLOW) {
-        let t = pf[o + F.T];
-        t += pf[o + F.SPEED];
+      let px = pf[o + F.X];
+      let py = pf[o + F.Y];
+      let isActive = pActive[i];
 
-        if (t > 1.06) {
-          t = -0.04 - Math.random() * 0.03;
+      const baseX = pf[o + F.BASE_X];
+      const baseY = pf[o + F.BASE_Y];
+
+      // -- Active cooldown management --
+      if (isActive) {
+        let cd = pf[o + F.RATE] - 1;
+        if (cd <= 0) {
+          cd = 0;
+          isActive = 0;
+          pActive[i] = 0;
           pf[o + F.VX] = 0;
           pf[o + F.VY] = 0;
-          pf[o + F.OPACITY] = 0;
         }
-        pf[o + F.T] = t;
-
-        const ct = t < 0.01 ? 0.01 : t > 0.99 ? 0.99 : t;
-        const fpx = this.flowPosX(ct);
-        const fpy = this.flowPosY(ct);
-        const tang = this.flowTangent(ct);
-        const perpX = -tang.ty, perpY = tang.tx;
-
-        const funnelWidth = 0.06 + ct * 0.55;
-        const spread = minDim * funnelWidth;
-        const scatterNorm = pf[o + F.SCATTER] / (minDim * 0.61 || 1);
-        const currentScatter = scatterNorm * spread;
-
-        const targetAx = fpx + perpX * currentScatter;
-        const targetAy = fpy + perpY * currentScatter;
-
-        pf[o + F.AX] += (targetAx - pf[o + F.AX]) * 0.06;
-        pf[o + F.AY] += (targetAy - pf[o + F.AY]) * 0.06;
+        pf[o + F.RATE] = cd;
       }
 
-      // -- Inline fluid sampling (no object allocation) --
+      // -- Activation by cursor proximity --
+      if (mouseOn) {
+        const dx = px - mx, dy = py - my;
+        if (dx * dx + dy * dy < activationR2) {
+          if (!isActive) {
+            isActive = 1;
+            pActive[i] = 1;
+          }
+          pf[o + F.RATE] = 90; // reset cooldown ~1.5s
+        }
+      }
+
+      // -- Compute spread target position (no per-particle storage) --
+      // Use per-particle phase as deterministic hash for viewport-wide redistribution.
+      // This breaks the bottom-heavy clustering so particles actually fill the viewport.
+      const hash01 = phase * 0.15915494; // phase / (2π) → uniform [0, 1)
+      const birthNormY = baseY / h;
+
+      // Layer-specific spread zone: where this layer's particles go at full spread
+      // FAR: full viewport reach (background depth), MID: broad, NEAR: stays lower
+      const zoneTop = layer === LAYER.FAR ? -0.02 : layer === LAYER.MID ? 0.05 : 0.40;
+      const zoneBot = layer === LAYER.FAR ? 1.02  : layer === LAYER.MID ? 1.02 : 0.95;
+      const spreadDestY = zoneTop + hash01 * (zoneBot - zoneTop);
+
+      // Target Y: lerp between birth position and spread destination
+      const targetY = (birthNormY + (spreadDestY - birthNormY) * gField) * h;
+
+      // Horizontal: outward push from center, scaled by layer
+      const spreadH = layer === LAYER.FAR ? SPREAD_H_FAR
+        : layer === LAYER.MID ? SPREAD_H_MID : SPREAD_H_NEAR;
+      const centerOff = (baseX / w - 0.5);
+      const targetX = baseX + centerOff * w * spreadH * gField;
+
+      // -- Position update --
+      if (isActive) {
+        // === ACTIVE: fluid coupling + overdamped velocity + spread tracking ===
+        let gi = px * invW + 0.5;
+        let gj = py * invH + 0.5;
+        if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
+        if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
+        const i0 = gi | 0;
+        const j0 = gj | 0;
+        const s = gi - i0;
+        const tt = gj - j0;
+        const s1 = 1 - s;
+        const t1 = 1 - tt;
+        const idx00 = i0 + S * j0;
+        const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
+        const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
+
+        const coupling = layer === LAYER.NEAR ? 0.35 : layer === LAYER.MID ? 0.20 : 0.08;
+        let vx = pf[o + F.VX] + flVx * fluidToPixel * coupling;
+        let vy = pf[o + F.VY] + flVy * fluidToPixel * coupling;
+
+        // Spread tracking via velocity nudge (not a spring — overdamped positional follow)
+        vx += (targetX - px) * 0.04;
+        vy += (targetY - py) * 0.04;
+
+        // Soft boundary nudge
+        if (py < -h * 0.1) vy += 0.12;
+        if (py > h * 1.08) vy -= 0.06;
+        if (px < -w * 0.05) vx += 0.06;
+        if (px > w * 1.05) vx -= 0.06;
+
+        // Overdamped — no oscillation possible
+        vx *= 0.80;
+        vy *= 0.80;
+
+        px += vx;
+        py += vy;
+        pf[o + F.VX] = vx;
+        pf[o + F.VY] = vy;
+      } else {
+        // === PASSIVE: positional interpolation + procedural drift ===
+        // Direct position tracking (no velocity state) — very cheap
+        px += (targetX - px) * followRate;
+        py += (targetY - py) * followRate;
+
+        // Ambient sinusoidal drift overlay (tiny, organic)
+        const driftScale = layer === LAYER.NEAR ? 0.55 : layer === LAYER.MID ? 0.28 : 0.10;
+        const freqX = layer === LAYER.NEAR ? 0.05 : layer === LAYER.MID ? 0.07 : 0.09;
+        const freqY = freqX * 0.72;
+        px += Math.cos(time * freqX + phase) * driftScale * 0.08;
+        py += Math.sin(time * freqY + phase * 1.3) * driftScale * 0.05;
+      }
+
+      pf[o + F.X] = px;
+      pf[o + F.Y] = py;
+
+      // -- Opacity (shared for active and passive) --
+      const flicker = 0.65 + 0.35 * Math.sin(time * pf[o + F.FLICKER_SPEED] + phase);
+      let targetOp = pf[o + F.BASE_OPACITY] * flicker;
+
+      // Scroll field opacity modifiers
+      if (gField > 0.01) {
+        targetOp *= (1 + opBoost);
+
+        // Center-clear: fade particles near viewport center at high field
+        if (gField > 0.4) {
+          const edgeFrame = gField < 0.90 ? (gField - 0.4) / 0.50 : 1;
+          const normCX = Math.abs(px / w - 0.5) * 2;
+          const normCY = Math.abs(py / h - 0.5) * 2;
+          const edgeness = normCX > normCY ? normCX : normCY;
+          const centerFade = edgeness < 0.35 ? edgeness / 0.35 : 1;
+          targetOp *= 1 - edgeFrame * (1 - centerFade) * 0.7;
+        }
+      }
+
+      // Velocity-based displacement fade (active only)
+      if (isActive) {
+        const vx = pf[o + F.VX], vy = pf[o + F.VY];
+        const vel = Math.sqrt(vx * vx + vy * vy);
+        targetOp *= 1 - (vel * 0.04 < 0.35 ? vel * 0.04 : 0.35);
+      }
+
+      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * 0.12;
+    }
+
+    // === FLOW PARTICLES (path-following, unchanged architecture) ===
+    const n = this.pCount;
+    for (let i = settled; i < n; i++) {
+      const o = i * F._COUNT;
+      const layer = pLayer[i];
+
+      // Bezier path advancement
+      let t = pf[o + F.T];
+      t += pf[o + F.SPEED];
+      if (t > 1.06) {
+        t = -0.04 - Math.random() * 0.03;
+        pf[o + F.VX] = 0;
+        pf[o + F.VY] = 0;
+        pf[o + F.OPACITY] = 0;
+      }
+      pf[o + F.T] = t;
+
+      const ct = t < 0.01 ? 0.01 : t > 0.99 ? 0.99 : t;
+      const fpx = this.flowPosX(ct);
+      const fpy = this.flowPosY(ct);
+      const tang = this.flowTangent(ct);
+      const perpX = -tang.ty, perpY = tang.tx;
+
+      const funnelWidth = 0.06 + ct * 0.55;
+      const spread = minDim * funnelWidth;
+      const scatterNorm = pf[o + F.SCATTER] / (minDim * 0.61 || 1);
+      const currentScatter = scatterNorm * spread;
+
+      const targetBx = fpx + perpX * currentScatter;
+      const targetBy = fpy + perpY * currentScatter;
+
+      pf[o + F.BASE_X] += (targetBx - pf[o + F.BASE_X]) * 0.06;
+      pf[o + F.BASE_Y] += (targetBy - pf[o + F.BASE_Y]) * 0.06;
+
+      // Fluid sampling
       let px = pf[o + F.X];
       let py = pf[o + F.Y];
       let gi = px * invW + 0.5;
@@ -843,22 +987,10 @@ export class DustParticles implements OnInit, OnDestroy {
       let vx = pf[o + F.VX] + flVx * fluidToPixel * coupling;
       let vy = pf[o + F.VY] + flVy * fluidToPixel * coupling;
 
-      // Soft containment / spring return to anchor
-      if (kind === KIND.SETTLED) {
-        const ax = pf[o + F.AX];
-        const ay = pf[o + F.AY];
-        const dx = px - ax;
-        const dy = py - ay;
-        // Spring force: always pulls toward anchor, strength scales with distance
-        // Stronger pull = particles settle faster at new anchor after spread
-        const rr = pf[o + F.RETURN_RATE];
-        vx -= dx * rr;
-        vy -= dy * rr;
-      } else {
-        const rr = pf[o + F.RETURN_RATE] * 0.3;
-        vx += (pf[o + F.AX] - px) * rr;
-        vy += (pf[o + F.AY] - py) * rr;
-      }
+      // Spring return to bezier anchor (kept for FLOW path-following)
+      const rr = pf[o + F.RATE] * 0.3;
+      vx += (pf[o + F.BASE_X] - px) * rr;
+      vy += (pf[o + F.BASE_Y] - py) * rr;
 
       // Damping
       const damp = layer === LAYER.NEAR ? 0.96 : layer === LAYER.MID ? 0.94 : 0.90;
@@ -880,111 +1012,26 @@ export class DustParticles implements OnInit, OnDestroy {
       pf[o + F.X] = px;
       pf[o + F.Y] = py;
 
-      // -- Opacity --
+      // Opacity
       let envelope = 1;
-      if (kind === KIND.FLOW) {
-        const t = pf[o + F.T];
-        if (t < 0) envelope = 0;
-        else if (t < 0.07) envelope = t / 0.07;
-        else if (t > 0.93) envelope = (1 - t) / 0.07;
-        if (envelope < 0) envelope = 0;
-        else if (envelope > 1) envelope = 1;
-      }
+      if (t < 0) envelope = 0;
+      else if (t < 0.07) envelope = t / 0.07;
+      else if (t > 0.93) envelope = (1 - t) / 0.07;
+      if (envelope < 0) envelope = 0;
+      else if (envelope > 1) envelope = 1;
 
       const vel = Math.sqrt(vx * vx + vy * vy);
       const displaceFade = 1 - (vel * 0.04 < 0.35 ? vel * 0.04 : 0.35);
-
       const flicker = 0.65 + 0.35 * Math.sin(time * pf[o + F.FLICKER_SPEED] + phase);
-      let targetOp = pf[o + F.BASE_OPACITY] * envelope * flicker * displaceFade;
-
-      // Spread-driven opacity modifiers
-      if (aSpread > 0.01) {
-        // Boost opacity during spread so particles are visible across the full viewport
-        targetOp *= (1 + transitionOpacityBoost);
-
-        // Center-clear: use pre-computed edgeness (O(1) lookup per particle)
-        // edgeFrame ramps from 0→1 as spread goes from 0.5→1.0
-        const edgeFrame = aSpread < 0.5 ? 0 : (aSpread > 0.95 ? 1 : (aSpread - 0.5) / 0.45);
-        if (edgeFrame > 0) {
-          const edgeness = this.pEdgeness[i];
-          // Particles in inner 40% of screen fade out, outer ones stay
-          const centerFade = edgeness < 0.40 ? edgeness / 0.40 : 1;
-          targetOp *= 1 - edgeFrame * (1 - centerFade);
-        }
-      }
-
-      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * (aSpread < 0.02 ? 0.18 : 0.08);
-    }
-  }
-
-  // -- Smoothly lerp particle anchors between home and spread positions --
-  // This runs every frame but is O(n) only on the anchor arrays (cache-friendly).
-  // The anchorSpread value is already smoothed in the animate loop.
-  private updateAnchors(): void {
-    const pf = this.pFloat;
-    const pKind = this.pKind;
-    const n = this.pCount;
-    const spread = this.anchorSpread;
-    const st = this.pSpreadTarget;
-    const origX = this.pOrigAnchorX;
-    const origY = this.pOrigAnchorY;
-    const w = this.width, h = this.height;
-
-    for (let i = 0; i < n; i++) {
-      if (pKind[i] !== KIND.SETTLED) continue;
-      const o = i * F._COUNT;
-      // Lerp anchor between original home position and spread target
-      const homeX = origX[i];
-      const homeY = origY[i];
-      const spreadX = st[i * 2] * w;
-      const spreadY = st[i * 2 + 1] * h;
-      pf[o + F.AX] = homeX + (spreadX - homeX) * spread;
-      pf[o + F.AY] = homeY + (spreadY - homeY) * spread;
-    }
-  }
-
-  // -- Store original anchor positions so we can reset after spread --
-  private storeOriginalAnchors(): void {
-    const pf = this.pFloat;
-    const n = this.pCount;
-    for (let i = 0; i < n; i++) {
-      const o = i * F._COUNT;
-      this.pOrigAnchorX[i] = pf[o + F.AX];
-      this.pOrigAnchorY[i] = pf[o + F.AY];
-    }
-  }
-
-  // -- Pre-compute spread targets + edgeness at init (O(n) once, O(1) per frame) --
-  // This eliminates the per-frame updateScrollOffsets() O(n) loop.
-  // Each particle gets a deterministic target position (normalized 0..1)
-  // and a pre-computed Chebyshev edgeness for center-clear opacity.
-  private precomputeSpreadTargets(): void {
-    const n = this.pCount;
-    const st = this.pSpreadTarget;
-    const pe = this.pEdgeness;
-
-    for (let i = 0; i < n; i++) {
-      // Math.random() at init — truly uncorrelated X/Y, runs once so perf is fine
-      const rx = Math.random();
-      const ry = Math.random();
-
-      // Slight overshoot beyond viewport so particles cover the very edges
-      st[i * 2]     = rx * 1.06 - 0.03; // -0.03..1.03
-      st[i * 2 + 1] = ry * 1.06 - 0.03;
-
-      // Pre-compute Chebyshev distance from center for this target position
-      // 0 = dead center, 1 = edge/corner
-      const normX = Math.abs(rx - 0.5) * 2; // 0..1
-      const normY = Math.abs(ry - 0.5) * 2; // 0..1
-      pe[i] = normX > normY ? normX : normY;
+      const targetOp = pf[o + F.BASE_OPACITY] * envelope * flicker * displaceFade;
+      pf[o + F.OPACITY] += (targetOp - pf[o + F.OPACITY]) * 0.18;
     }
   }
 
   // -- Draw a bucket of particles using pre-rendered stamps --
-  // Spread offsets and center-clear are computed inline here.
   // Since we must iterate all visible particles for Canvas2D drawImage
-  // anyway, this adds zero extra loops. The scroll progress `sp` is
-  // a single float → O(1) scroll cost per frame.
+  // anyway, this adds zero extra loops. The global scroll field is a
+  // single scalar — O(1) scroll cost per frame.
   private drawBucket(ctx: CanvasRenderingContext2D, indices: Uint16Array, count: number): void {
     const pf = this.pFloat;
     const pColor = this.pColor;
@@ -1062,7 +1109,8 @@ export class DustParticles implements OnInit, OnDestroy {
     const rc = this.reliefCtx;
     const rw = this.reliefCanvas.width;
     const rh = this.reliefCanvas.height;
-    const sp = this.smoothScrollProgress;
+    // Use globalScrollField (heroBloom-driven) so darkening matches particle spread timing
+    const sp = this.globalScrollField;
 
     // Downscale + blur + amplify relief (skip on mobile — expensive compositing)
     if (!this.isMobile) {

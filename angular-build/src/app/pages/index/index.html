@@ -1,7 +1,7 @@
 <div class="index-scroll-track" #scrollContainer>
 	<!-- Zone 1: Hero — first viewport, logo centered -->
 	<section class="index-page index-page--hero">
-		<div class="index-page__logo" [style.opacity]="1 - scrollProgress() * 3.3" [style.transform]="'translate(-50%, ' + (-50 - scrollProgress() * 80) + '%)'">
+		<div class="index-page__logo" [style.opacity]="logoOpacity()" [style.transform]="'translate(-50%, ' + logoShift() + '%)'">
 			<img src="/images/AdamJuwaied.png" alt="Adam Juwaied" class="index-page__logo-img" />
 			<img src="/images/ADAMJSHADOW.png" class="index-page__logo-img-shadow" />
 		</div>
@@ -12,7 +12,7 @@
 
 	<!-- Zone 3: Reveal — content appears inside particle-framed void -->
 	<section class="index-page index-page--reveal">
-		<div class="index-reveal" [style.opacity]="scrollProgress() > 0.6 ? (scrollProgress() - 0.6) / 0.25 : 0">
+		<div class="index-reveal" [style.opacity]="textOpacity()">
 			<p class="index-reveal__tagline">DESIGN. CODE. CRAFT.</p>
 			<h2 class="index-reveal__heading">Building digital experiences<br />that feel alive.</h2>
 			<p class="index-reveal__sub">Scroll to explore my work</p>

@@ -17,8 +17,17 @@ import { isPlatformBrowser } from '@angular/common';
   styleUrl: './index.scss',
 })
 export class Index implements OnInit, OnDestroy {
-  /** 0 = top of scroll, 1 = fully scrolled through transition */
+  /**
+   * Unified local progress: 0→1 over one scroll window (~1vh).
+   * ALL reveal effects derive from this single timeline.
+   */
   protected readonly scrollProgress = signal(0);
+  /** Logo opacity: sub-range 0.00→0.35 of scrollProgress */
+  protected readonly logoOpacity = signal(1);
+  /** Logo vertical shift for parallax */
+  protected readonly logoShift = signal(0);
+  /** Text reveal opacity: sub-range 0.35→0.90 of scrollProgress */
+  protected readonly textOpacity = signal(0);
 
   @ViewChild('scrollContainer', { static: true }) scrollContainerRef!: ElementRef<HTMLElement>;
 
@@ -49,13 +58,26 @@ export class Index implements OnInit, OnDestroy {
     this.rafId = requestAnimationFrame(() => {
       this.rafId = null;
       const scrollY = window.scrollY || window.pageYOffset;
-      // Total scroll distance for the transition: 3 viewport heights
-      const totalDistance = window.innerHeight * 3;
-      const progress = Math.min(1, Math.max(0, scrollY / totalDistance));
-      this.scrollProgress.set(progress);
+      const vh = window.innerHeight;
 
-      // Dispatch custom event for dust-particles to consume
-      window.dispatchEvent(new CustomEvent('homepage-scroll', { detail: { progress } }));
+      // === ONE shared local progress: 0→1 from first scroll ===
+      // Transition starts immediately at scrollY=0, completes within ~1vh.
+      const transitionDist = vh * 0.95;
+      const localProgress = Math.min(1, Math.max(0, scrollY / transitionDist));
+      this.scrollProgress.set(localProgress);
+
+      // --- Staggered sub-ranges on the SAME 0→1 timeline ---
+      // Logo fade: 0.00 → 0.35
+      const logoFade = localProgress < 0.35 ? localProgress / 0.35 : 1;
+      this.logoOpacity.set(1 - logoFade);
+      this.logoShift.set(-50 - logoFade * 40);
+
+      // Text reveal: 0.35 → 0.90
+      const textFade = localProgress < 0.35 ? 0 : (localProgress > 0.90 ? 1 : (localProgress - 0.35) / 0.55);
+      this.textOpacity.set(textFade);
+
+      // Dispatch for dust-particles (uses the same localProgress)
+      window.dispatchEvent(new CustomEvent('homepage-scroll', { detail: { progress: localProgress } }));
     });
   }
 }

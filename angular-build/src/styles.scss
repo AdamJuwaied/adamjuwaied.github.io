@@ -208,6 +208,7 @@ section header nav div ul li a:active {
   font-size: 2rem;
   font-family: var(--active-font), 'Roboto Mono', monospace;
   transition: color 0.3s ease, text-shadow 0.3s ease;
+  z-index: 5;
 
   &:hover {
     color: var(--gold-hover);
