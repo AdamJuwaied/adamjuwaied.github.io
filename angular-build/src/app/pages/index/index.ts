@@ -61,19 +61,19 @@ export class Index implements OnInit, OnDestroy {
       const vh = window.innerHeight;
 
       // === ONE shared local progress: 0→1 from first scroll ===
-      // Transition starts immediately at scrollY=0, completes within ~1vh.
-      const transitionDist = vh * 0.95;
+      // Transition completes within ~0.38vh for a tighter, premium feel.
+      const transitionDist = vh * 0.38;
       const localProgress = Math.min(1, Math.max(0, scrollY / transitionDist));
       this.scrollProgress.set(localProgress);
 
-      // --- Staggered sub-ranges on the SAME 0→1 timeline ---
-      // Logo fade: 0.00 → 0.35
-      const logoFade = localProgress < 0.35 ? localProgress / 0.35 : 1;
+      // --- Tighter staggered sub-ranges for snappy transitions ---
+      // Logo fade: 0.00 → 0.25
+      const logoFade = localProgress < 0.25 ? localProgress / 0.25 : 1;
       this.logoOpacity.set(1 - logoFade);
-      this.logoShift.set(-50 - logoFade * 40);
+      this.logoShift.set(-50 - logoFade * 30);
 
-      // Text reveal: 0.35 → 0.90
-      const textFade = localProgress < 0.35 ? 0 : (localProgress > 0.90 ? 1 : (localProgress - 0.35) / 0.55);
+      // Text reveal: 0.25 → 0.70
+      const textFade = localProgress < 0.25 ? 0 : (localProgress > 0.70 ? 1 : (localProgress - 0.25) / 0.45);
       this.textOpacity.set(textFade);
 
       // Dispatch for dust-particles (uses the same localProgress)

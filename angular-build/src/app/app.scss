@@ -49,6 +49,9 @@
 .app-shell__background-pattern {
   inset: -8vh -10vw;
   z-index: 2;
+  will-change: opacity;
+  contain: layout style;
+  transform: translateZ(0);
 
   &::after {
     content: '';
@@ -72,9 +75,11 @@
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  filter: drop-shadow(0 0 2px var(--app-pattern-shadow)) brightness(0.85) saturate(0.85) contrast(0.92);
+  opacity: inherit;
+  filter: brightness(0.85) saturate(0.85) contrast(0.92);
   mix-blend-mode: soft-light;
   user-select: none;
+  contain: strict;
 }
 
 .app-shell__background-texture {

@@ -187,6 +187,7 @@ export class LightRays implements OnInit, OnDestroy {
   @Input() distortion = 0;
 
   private isBrowser: boolean;
+  private isMobile = false;
   private renderer: any = null;
   private mesh: any = null;
   private uniforms: any = null;
@@ -197,9 +198,15 @@ export class LightRays implements OnInit, OnDestroy {
   private boundMouseMove = this.onMouseMove.bind(this);
   private boundTouchMove = this.onTouchMove.bind(this);
   private boundResize = this.onResize.bind(this);
+  private frameCount = 0;
+  private lastScrollY = 0;
+  private lastScrollTime = 0;
 
   constructor(@Inject(PLATFORM_ID) platformId: Object) {
     this.isBrowser = isPlatformBrowser(platformId);
+    if (this.isBrowser) {
+      this.isMobile = window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
+    }
   }
 
   ngOnInit(): void {
@@ -227,7 +234,7 @@ export class LightRays implements OnInit, OnDestroy {
     if (!container) return;
 
     this.renderer = new Renderer({
-      dpr: Math.min(window.devicePixelRatio, 2),
+      dpr: Math.min(window.devicePixelRatio, this.isMobile ? 1.0 : 2),
       alpha: true,
     });
 
@@ -278,6 +285,22 @@ export class LightRays implements OnInit, OnDestroy {
     const loop = (t: number) => {
       if (!this.renderer || !this.uniforms || !this.mesh) return;
 
+      this.frameCount++;
+
+      // Detect scrolling
+      const currentScrollY = window.scrollY;
+      if (currentScrollY !== this.lastScrollY) {
+        this.lastScrollTime = t;
+        this.lastScrollY = currentScrollY;
+      }
+      const isScrolling = (t - this.lastScrollTime) < 300;
+
+      // On mobile, skip every other frame during scroll to reduce GPU load
+      if (this.isMobile && isScrolling && this.frameCount % 2 !== 0) {
+        this.animationId = requestAnimationFrame(loop);
+        return;
+      }
+
       this.uniforms.iTime.value = t * 0.001;
 
       if (this.followMouse && this.mouseInfluence > 0) {
@@ -302,7 +325,7 @@ export class LightRays implements OnInit, OnDestroy {
     const container = this.containerRef.nativeElement;
     if (!container || !this.renderer) return;
 
-    this.renderer.dpr = Math.min(window.devicePixelRatio, 2);
+    this.renderer.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 1.0 : 2);
 
     const { clientWidth: wCSS, clientHeight: hCSS } = container;
     this.renderer.setSize(wCSS, hCSS);

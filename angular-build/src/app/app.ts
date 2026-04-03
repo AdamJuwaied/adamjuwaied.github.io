@@ -4,7 +4,6 @@ import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { Header } from './components/header/header';
 import { LightRays } from './components/light-rays/light-rays';
-import { DustParticles } from './components/dust-particles/dust-particles';
 import { DustParticlesGL } from './components/dust-particles-gl/dust-particles-gl';
 
 interface PatternItem {
@@ -18,7 +17,7 @@ interface PatternItem {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, Header, LightRays, DustParticles, DustParticlesGL],
+  imports: [RouterOutlet, Header, LightRays, DustParticlesGL],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

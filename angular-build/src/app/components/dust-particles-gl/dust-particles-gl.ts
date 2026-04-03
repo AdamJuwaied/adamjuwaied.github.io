@@ -316,8 +316,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private pPosY!: Float32Array;
   private pVX!: Float32Array;
   private pVY!: Float32Array;
-  private pBaseX!: Float32Array;
+  private pBaseX!: Float32Array;    // current "home" (drifts with liquid displacement)
   private pBaseY!: Float32Array;
+  private pBirthX!: Float32Array;   // original birth position (never changes)
+  private pBirthY!: Float32Array;
   private pSize!: Float32Array;
   private pOpacity!: Float32Array;
   private pBaseOpacity!: Float32Array;
@@ -361,6 +363,12 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   // Scroll
   private smoothScrollProgress = 0;
   private globalScrollField = 0;
+  private lastScrollChangeTime = 0;
+  private prevScrollInput = 0;
+  private isScrolling = false;
+
+  // Fluid energy tracking — lets fluid dissipate naturally after mouse stops
+  private fluidHasEnergy = false;
 
   // Bezier control points (cached)
   private bp0x = 0; private bp0y = 0;
@@ -371,9 +379,9 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   // -- Stable Fluids grid --
   private FLUID_N = 48;
   private readonly FLUID_DT = 0.016;
-  private readonly FLUID_VISC = 30;
-  private readonly FLUID_FORCE = 0.08;
-  private readonly FLUID_CURSOR_PX = 28;
+  private readonly FLUID_VISC = 25;
+  private readonly FLUID_FORCE = 0.06;
+  private readonly FLUID_CURSOR_PX = 32;
   private fluidVx!: Float32Array;
   private fluidVy!: Float32Array;
   private fluidVx0!: Float32Array;
@@ -416,8 +424,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.initParticles();
     this.initVignette();
 
-    console.log(`[DustGL] Init: ${this.width}x${this.height} @${this.dpr}x, ${this.pCount} particles, dust=${this.canvasRef.nativeElement.width}x${this.canvasRef.nativeElement.height}, vig=${this.vigCanvasRef.nativeElement.width}x${this.vigCanvasRef.nativeElement.height}`);
-    console.log(`[DustGL] Settled=${this.settledCount}, Flow=${this.flowCount}, Mobile=${this.isMobile}`);
+
 
     this.boundResize = this.onResize.bind(this);
     this.boundMouseMove = this.onMouseMove.bind(this);
@@ -495,6 +502,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.pVY = new Float32Array(total);
     this.pBaseX = new Float32Array(total);
     this.pBaseY = new Float32Array(total);
+    this.pBirthX = new Float32Array(total);
+    this.pBirthY = new Float32Array(total);
     this.pSize = new Float32Array(total);
     this.pOpacity = new Float32Array(total);
     this.pBaseOpacity = new Float32Array(total);
@@ -654,12 +663,17 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   }
 
   private onMouseMove(e: MouseEvent): void {
-    this.prevMouseX = this.mouseX;
-    this.prevMouseY = this.mouseY;
-    this.mouseX = e.clientX;
-    this.mouseY = e.clientY;
-    this.mouseActive = true;
-    this.mouseLastMoveTime = performance.now();
+    const nx = e.clientX, ny = e.clientY;
+    const dx = nx - this.mouseX, dy = ny - this.mouseY;
+    // Only count as "active" if cursor actually moved >= 2px
+    if (dx * dx + dy * dy >= 4) {
+      this.prevMouseX = this.mouseX;
+      this.prevMouseY = this.mouseY;
+      this.mouseX = nx;
+      this.mouseY = ny;
+      this.mouseActive = true;
+      this.mouseLastMoveTime = performance.now();
+    }
   }
 
   private onMouseLeave(): void { this.mouseActive = false; }
@@ -781,6 +795,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.pVY[i] = 0;
     this.pBaseX[i] = x;
     this.pBaseY[i] = y;
+    this.pBirthX[i] = x;
+    this.pBirthY[i] = y;
     this.pSize[i] = size;
     this.pOpacity[i] = baseOpacity * Math.random();
     this.pBaseOpacity[i] = baseOpacity;
@@ -842,6 +858,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.pVY[i] = 0;
     this.pBaseX[i] = px;
     this.pBaseY[i] = py;
+    this.pBirthX[i] = px;
+    this.pBirthY[i] = py;
     this.pSize[i] = size;
     this.pOpacity[i] = baseOpacity * Math.random();
     this.pBaseOpacity[i] = baseOpacity;
@@ -864,10 +882,26 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.time = timestamp * 0.001;
     this.frameCount++;
 
+    const now = performance.now();
+
+    // Track scroll changes to detect active scrolling
+    if (Math.abs(this.scrollProgress - this.prevScrollInput) > 0.001) {
+      this.lastScrollChangeTime = now;
+      this.prevScrollInput = this.scrollProgress;
+    }
+    const isScrolling = (now - this.lastScrollChangeTime) < 200;
+    this.isScrolling = isScrolling;
+
+    // On mobile during active scroll, run at half frame rate (30fps)
+    // This is the single biggest perf win — halves ALL work during scroll
+    if (this.isMobile && isScrolling && (this.frameCount & 1) === 0) {
+      this.animationId = requestAnimationFrame(this.animate);
+      return;
+    }
+
     const w = this.width, h = this.height;
 
     // Smooth scroll
-    const prevSp = this.smoothScrollProgress;
     const scrollLerp = this.scrollProgress < this.smoothScrollProgress ? 0.22 : 0.18;
     this.smoothScrollProgress += (this.scrollProgress - this.smoothScrollProgress) * scrollLerp;
     const sp = this.smoothScrollProgress;
@@ -878,35 +912,49 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const heroBloom = 1 - pri * pri * pri;
     this.globalScrollField = heroBloom;
 
-    const now = performance.now();
-
     // Cursor smoothing
-    const lerpRate = 0.12;
+    const cursorLerp = 0.35;
     const timeSinceMove = now - this.mouseLastMoveTime;
     if (this.cursorSmoothedX < -9000) {
       this.cursorSmoothedX = this.mouseX;
       this.cursorSmoothedY = this.mouseY;
     } else {
-      this.cursorSmoothedX += (this.mouseX - this.cursorSmoothedX) * lerpRate;
-      this.cursorSmoothedY += (this.mouseY - this.cursorSmoothedY) * lerpRate;
+      this.cursorSmoothedX += (this.mouseX - this.cursorSmoothedX) * cursorLerp;
+      this.cursorSmoothedY += (this.mouseY - this.cursorSmoothedY) * cursorLerp;
     }
-    const targetStrength = (this.mouseActive && timeSinceMove < 1200) ? 1 : 0;
-    this.cursorStrength += (targetStrength - this.cursorStrength) * 0.08;
+    // Deactivate mouse if it hasn't moved for 150ms
+    if (this.mouseActive && timeSinceMove > 150) {
+      this.mouseActive = false;
+    }
+    const targetStrength = (this.mouseActive && timeSinceMove < 800) ? 1 : 0;
+    this.cursorStrength += (targetStrength - this.cursorStrength) * 0.18;
 
     // Mouse velocity
     if (this.mouseActive) {
-      this.mouseVx = (this.mouseX - this.prevMouseX) * 0.6 + this.mouseVx * 0.4;
-      this.mouseVy = (this.mouseY - this.prevMouseY) * 0.6 + this.mouseVy * 0.4;
+      this.mouseVx = (this.mouseX - this.prevMouseX) * 0.8 + this.mouseVx * 0.2;
+      this.mouseVy = (this.mouseY - this.prevMouseY) * 0.8 + this.mouseVy * 0.2;
       this.prevMouseX = this.mouseX;
       this.prevMouseY = this.mouseY;
     } else {
-      this.mouseVx *= 0.92;
-      this.mouseVy *= 0.92;
+      this.mouseVx *= 0.88;
+      this.mouseVy *= 0.88;
     }
 
-    // Fluid sim
-    if (!this.isMobile || this.mouseActive) {
+    // Fluid sim: run while mouse is active OR while fluid still has energy
+    // This lets the fluid dissipate naturally after the cursor stops,
+    // giving particles that liquid coasting feel.
+    if (!isScrolling && (this.mouseActive || this.fluidHasEnergy)) {
       this.fluidStep();
+
+      // Check if fluid still has meaningful velocity
+      let maxVel = 0;
+      const sz = (this.FLUID_N + 2) * (this.FLUID_N + 2);
+      // Sample every 4th cell for speed — don't scan entire grid
+      for (let k = 0; k < sz; k += 4) {
+        const v = this.fluidVx[k] * this.fluidVx[k] + this.fluidVy[k] * this.fluidVy[k];
+        if (v > maxVel) maxVel = v;
+      }
+      this.fluidHasEnergy = maxVel > 0.00001;
     }
 
     // Update particles (CPU-side physics)
@@ -930,15 +978,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
 
-    // Render vignette to separate canvas
+    // Render vignette
     this.vigRenderer.render(this.vignetteScene, this.vignetteCamera);
-
-    // Diagnostic: log once per second
-    if (this.frameCount % 60 === 0) {
-      let activeCount = 0;
-      for (let i = 0; i < this.settledCount; i++) if (this.pActive[i]) activeCount++;
-      console.log(`[DustGL] f=${this.frameCount} scroll=${this.scrollProgress.toFixed(3)} gField=${this.globalScrollField.toFixed(3)} mouse=${this.mouseActive?'ON':'off'}(${this.mouseX|0},${this.mouseY|0}) vx=${this.mouseVx.toFixed(1)} active=${activeCount} op0=${this.pOpacity[0].toFixed(4)} pos0=(${this.pPosX[0].toFixed(1)},${this.pPosY[0].toFixed(1)})`);
-    }
 
     this.animationId = requestAnimationFrame(this.animate);
   };
@@ -964,7 +1005,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     const mx = this.mouseX, my = this.mouseY;
     const mouseOn = this.mouseActive;
-    const activationR2 = 180 * 180;
+    const activationR2 = 200 * 200;
 
     const opBoost = gField < 0.03 ? 0 : (gField > 0.6 ? 0.55 : gField / 0.6 * 0.55);
 
@@ -972,7 +1013,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const SPREAD_H_MID = 0.28;
     const SPREAD_H_NEAR = 0.12;
 
-    const followRate = 0.09;
+    const isScrolling = this.isScrolling;
 
     // === SETTLED ===
     const settled = this.settledCount;
@@ -984,8 +1025,18 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       let py = this.pPosY[i];
       let isActive = this.pActive[i];
 
-      const baseX = this.pBaseX[i];
-      const baseY = this.pBaseY[i];
+      let baseX = this.pBaseX[i];
+      let baseY = this.pBaseY[i];
+      const birthX = this.pBirthX[i];
+      const birthY = this.pBirthY[i];
+
+      // Gently pull base positions back toward birth positions
+      // Faster when in hero state (gField≈0), slower when scrolled
+      const baseReturnRate = gField < 0.05 ? 0.012 : 0.003;
+      baseX += (birthX - baseX) * baseReturnRate;
+      baseY += (birthY - baseY) * baseReturnRate;
+      this.pBaseX[i] = baseX;
+      this.pBaseY[i] = baseY;
 
       // Active cooldown
       if (isActive) {
@@ -993,7 +1044,11 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         if (cd <= 0) {
           cd = 0; isActive = 0;
           this.pActive[i] = 0;
-          this.pVX[i] = 0; this.pVY[i] = 0;
+          // Liquid settle: shift base toward current position (not snap)
+          // This creates the "reform shape from new location" effect
+          const shiftStrength = 0.4;
+          this.pBaseX[i] = baseX + (px - baseX) * shiftStrength;
+          this.pBaseY[i] = baseY + (py - baseY) * shiftStrength;
         }
         this.pRate[i] = cd;
       }
@@ -1007,9 +1062,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         }
       }
 
-      // Spread target
+      // Formation target: always computed from BIRTH positions
+      // so the original shape is preserved when scrolling back
       const hash01 = phase * 0.15915494;
-      const birthNormY = baseY / h;
+      const birthNormY = birthY / h;
 
       const zoneTop = layer === LAYER_FAR ? -0.02 : layer === LAYER_MID ? 0.05 : 0.40;
       const zoneBot = layer === LAYER_FAR ? 1.02 : layer === LAYER_MID ? 1.02 : 0.95;
@@ -1018,8 +1074,14 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
       const spreadH = layer === LAYER_FAR ? SPREAD_H_FAR
         : layer === LAYER_MID ? SPREAD_H_MID : SPREAD_H_NEAR;
-      const centerOff = (baseX / w - 0.5);
-      const targetX = baseX + centerOff * w * spreadH * gField;
+      const centerOff = (birthX / w - 0.5);
+      const targetX = birthX + centerOff * w * spreadH * gField;
+
+      // Add the displacement offset (difference between base and birth)
+      const offX = baseX - birthX;
+      const offY = baseY - birthY;
+      const finalTargetX = targetX + offX;
+      const finalTargetY = targetY + offY;
 
       if (isActive) {
         let gi = px * invW + 0.5;
@@ -1036,29 +1098,70 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
         const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
 
-        const coupling = layer === LAYER_NEAR ? 0.35 : layer === LAYER_MID ? 0.20 : 0.08;
+        // Liquid-style: moderate fluid coupling, soft spring, smooth damping
+        const coupling = layer === LAYER_NEAR ? 0.40 : layer === LAYER_MID ? 0.25 : 0.12;
         let vx = this.pVX[i] + flVx * fluidToPixel * coupling;
         let vy = this.pVY[i] + flVy * fluidToPixel * coupling;
 
-        vx += (targetX - px) * 0.04;
-        vy += (targetY - py) * 0.04;
+        // Soft spring toward formation target — clamped to prevent shooting
+        let springX = (finalTargetX - px) * 0.015;
+        let springY = (finalTargetY - py) * 0.015;
+        const maxSpring = 1.5;
+        if (springX > maxSpring) springX = maxSpring; else if (springX < -maxSpring) springX = -maxSpring;
+        if (springY > maxSpring) springY = maxSpring; else if (springY < -maxSpring) springY = -maxSpring;
+        vx += springX;
+        vy += springY;
 
+        // Boundary containment
         if (py < -h * 0.1) vy += 0.12;
         if (py > h * 1.08) vy -= 0.06;
         if (px < -w * 0.05) vx += 0.06;
         if (px > w * 1.05) vx -= 0.06;
 
-        vx *= 0.80;
-        vy *= 0.80;
+        // Smooth damping — particles coast gently
+        vx *= 0.90;
+        vy *= 0.90;
+
+        // Clamp velocity magnitude to prevent shooting
+        const vMagA = vx * vx + vy * vy;
+        const maxVA = 5.0;
+        if (vMagA > maxVA * maxVA) {
+          const scaleA = maxVA / Math.sqrt(vMagA);
+          vx *= scaleA;
+          vy *= scaleA;
+        }
 
         px += vx;
         py += vy;
         this.pVX[i] = vx;
         this.pVY[i] = vy;
       } else {
-        px += (targetX - px) * followRate;
-        py += (targetY - py) * followRate;
+        // Inactive: position-based lerp for premium smooth transitions
+        // Fast during scroll so particles glide with the page,
+        // softer at rest for organic float feel
+        const lerpRate = isScrolling ? 0.18 : 0.10;
+        px += (finalTargetX - px) * lerpRate;
+        py += (finalTargetY - py) * lerpRate;
 
+        // Dampen any residual velocity from when particle was active
+        let vx = this.pVX[i];
+        let vy = this.pVY[i];
+        if (vx !== 0 || vy !== 0) {
+          const vMag = vx * vx + vy * vy;
+          if (vMag > 0.01) {
+            px += vx;
+            py += vy;
+            vx *= 0.82;
+            vy *= 0.82;
+          } else {
+            vx = 0;
+            vy = 0;
+          }
+          this.pVX[i] = vx;
+          this.pVY[i] = vy;
+        }
+
+        // Ambient drift (gentle organic float)
         const driftScale = layer === LAYER_NEAR ? 0.55 : layer === LAYER_MID ? 0.28 : 0.10;
         const freqX = layer === LAYER_NEAR ? 0.05 : layer === LAYER_MID ? 0.07 : 0.09;
         const freqY = freqX * 0.72;
