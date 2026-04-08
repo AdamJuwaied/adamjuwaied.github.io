@@ -35,16 +35,16 @@ const LAYER_MID = 1;
 const LAYER_NEAR = 2;
 
 const GOLD_PALETTE_RGB = [
-  [0.831, 0.627, 0.290], // #d4a04a
-  [0.788, 0.529, 0.231], // #c9873b
-  [0.859, 0.580, 0.263], // #db9443
-  [0.910, 0.663, 0.310], // #e8a94f
-  [0.722, 0.478, 0.204], // #b87a34
-  [0.941, 0.745, 0.416], // #f0be6a
-  [0.659, 0.431, 0.176], // #a86e2d
-  [0.859, 0.635, 0.333], // #dba255
-  [0.769, 0.533, 0.224], // #c48839
-  [0.878, 0.678, 0.369], // #e0ad5e
+  [0.937, 0.620, 0.180], // #EF9E2E — warm amber gold
+  [0.878, 0.545, 0.130], // #E08B21 — deep amber
+  [0.965, 0.690, 0.235], // #F6B03C — bright amber gold
+  [0.827, 0.498, 0.110], // #D37F1C — rich amber
+  [0.910, 0.588, 0.165], // #E8962A — medium amber
+  [0.984, 0.745, 0.298], // #FBBE4C — light amber gold
+  [0.780, 0.455, 0.094], // #C77418 — copper gold
+  [0.925, 0.635, 0.200], // #ECA233 — classic amber
+  [0.859, 0.525, 0.125], // #DB8620 — golden amber
+  [0.949, 0.710, 0.267], // #F2B544 — warm gold highlight
 ];
 
 // ===================== SHADERS =====================
@@ -370,6 +370,16 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   // Fluid energy tracking — lets fluid dissipate naturally after mouse stops
   private fluidHasEnergy = false;
 
+  // Home slot reassignment for ball-pit behavior
+  // Each settled particle springs toward pBaseX/pBaseY (its "home").
+  // pHomeSlot maps each particle to a birth-position index.
+  // When the user stops interacting, slots are reassigned so displaced
+  // particles target the nearest available formation position — like a ball pit.
+  private pHomeSlot!: Uint16Array;
+  private homeReassignNeeded = false;
+  private wasInteracting = false;
+  private lastInteractionTime = 0;
+
   // Bezier control points (cached)
   private bp0x = 0; private bp0y = 0;
   private bp1x = 0; private bp1y = 0;
@@ -379,9 +389,9 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   // -- Stable Fluids grid --
   private FLUID_N = 48;
   private readonly FLUID_DT = 0.016;
-  private readonly FLUID_VISC = 25;
-  private readonly FLUID_FORCE = 0.06;
-  private readonly FLUID_CURSOR_PX = 32;
+  private readonly FLUID_VISC = 20;
+  private readonly FLUID_FORCE = 0.15;
+  private readonly FLUID_CURSOR_PX = 70;
   private fluidVx!: Float32Array;
   private fluidVy!: Float32Array;
   private fluidVx0!: Float32Array;
@@ -526,6 +536,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     let idx = 0;
     for (let i = 0; i < this.settledCount; i++, idx++) this.initSettledParticle(idx);
     for (let i = 0; i < this.flowCount; i++, idx++) this.initFlowParticle(idx, Math.random());
+
+    // Init home slot identity mapping (particle i targets birth position i)
+    this.pHomeSlot = new Uint16Array(this.settledCount);
+    for (let i = 0; i < this.settledCount; i++) this.pHomeSlot[i] = i;
 
     // Build GPU geometry
     this.buildParticleGeometry();
@@ -876,6 +890,102 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.pActive[i] = 0;
   }
 
+  /**
+   * Greedy nearest-neighbor reassignment of home slots.
+   * For each particle, assigns it to the nearest unoccupied birth-position slot.
+   * Particles closest to their current slot are processed first (they keep it),
+   * so only displaced particles actually get reassigned.
+   * Uses a spatial grid for O(N) average complexity.
+   */
+  /**
+   * Swap-cascade home slot reassignment (ball-pit behavior).
+   *
+   * For each displaced particle, finds a nearby particle where swapping
+   * their home slots reduces the total distance both need to travel.
+   * Multiple passes propagate swaps outward like a cascade — the same
+   * way balls shift in a ball pit when you scoop some out.
+   */
+  private reassignHomeSlots(): void {
+    const n = this.settledCount;
+    if (n === 0) return;
+    const posX = this.pPosX, posY = this.pPosY;
+    const bx = this.pBirthX, by = this.pBirthY;
+    const hs = this.pHomeSlot;
+
+    // Build spatial grid of particles indexed by current position
+    const cellSize = 60;
+    const cols = Math.ceil(this.width / cellSize) + 1;
+    const rows = Math.ceil(this.height / cellSize) + 1;
+    const gridLen = cols * rows;
+    const grid: number[][] = new Array(gridLen);
+    for (let k = 0; k < gridLen; k++) grid[k] = [];
+    for (let i = 0; i < n; i++) {
+      const gx = Math.max(0, Math.min(cols - 1, (posX[i] / cellSize) | 0));
+      const gy = Math.max(0, Math.min(rows - 1, (posY[i] / cellSize) | 0));
+      grid[gy * cols + gx].push(i);
+    }
+
+    // Pairwise swap passes: for each displaced particle, find the best
+    // nearby swap partner that reduces total travel distance.
+    // Multiple passes propagate swaps like a cascade (ball-pit effect).
+    const displacedThresh = 100; // 10px squared
+    for (let pass = 0; pass < 5; pass++) {
+      let swapCount = 0;
+      for (let i = 0; i < n; i++) {
+        const hi = hs[i];
+        const dxi = posX[i] - bx[hi], dyi = posY[i] - by[hi];
+        const d2i = dxi * dxi + dyi * dyi;
+        if (d2i < displacedThresh) continue;
+
+        const gx = Math.max(0, Math.min(cols - 1, (posX[i] / cellSize) | 0));
+        const gy = Math.max(0, Math.min(rows - 1, (posY[i] / cellSize) | 0));
+
+        let bestJ = -1, bestSaving = 0;
+        for (let dy = -2; dy <= 2; dy++) {
+          const ny = gy + dy;
+          if (ny < 0 || ny >= rows) continue;
+          for (let dx = -2; dx <= 2; dx++) {
+            const nx = gx + dx;
+            if (nx < 0 || nx >= cols) continue;
+            const cell = grid[ny * cols + nx];
+            for (let ci = 0; ci < cell.length; ci++) {
+              const j = cell[ci];
+              if (j === i) continue;
+              const hj = hs[j];
+              // Current total distance²
+              const dxj = posX[j] - bx[hj], dyj = posY[j] - by[hj];
+              const curTotal = d2i + dxj * dxj + dyj * dyj;
+              // Swapped total distance²
+              const sxi = posX[i] - bx[hj], syi = posY[i] - by[hj];
+              const sxj = posX[j] - bx[hi], syj = posY[j] - by[hi];
+              const swpTotal = sxi * sxi + syi * syi + sxj * sxj + syj * syj;
+              const saving = curTotal - swpTotal;
+              if (saving > bestSaving) {
+                bestSaving = saving;
+                bestJ = j;
+              }
+            }
+          }
+        }
+
+        if (bestJ >= 0) {
+          const tmp = hs[i];
+          hs[i] = hs[bestJ];
+          hs[bestJ] = tmp;
+          swapCount++;
+        }
+      }
+      if (swapCount === 0) break; // converged
+    }
+
+    // Snap base positions to new homes immediately.
+    // Swaps minimize distance, so new homes are closer to current positions.
+    for (let i = 0; i < n; i++) {
+      this.pBaseX[i] = bx[hs[i]];
+      this.pBaseY[i] = by[hs[i]];
+    }
+  }
+
   // ===================== ANIMATION LOOP =====================
 
   private animate = (timestamp: number): void => {
@@ -901,8 +1011,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     const w = this.width, h = this.height;
 
-    // Smooth scroll
-    const scrollLerp = this.scrollProgress < this.smoothScrollProgress ? 0.22 : 0.18;
+    // Smooth scroll — track nearly instantly so particles don't lag
+    const scrollLerp = 0.85;
     this.smoothScrollProgress += (this.scrollProgress - this.smoothScrollProgress) * scrollLerp;
     const sp = this.smoothScrollProgress;
 
@@ -955,6 +1065,31 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         if (v > maxVel) maxVel = v;
       }
       this.fluidHasEnergy = maxVel > 0.00001;
+      if (!this.fluidHasEnergy) {
+        this.fluidVx.fill(0);
+        this.fluidVy.fill(0);
+      }
+    }
+
+    // Track interaction→idle transition for home slot reassignment
+    const interacting = this.mouseActive || this.fluidHasEnergy;
+    if (interacting) {
+      this.lastInteractionTime = now;
+      this.wasInteracting = true;
+    } else if (this.wasInteracting) {
+      this.wasInteracting = false;
+      this.homeReassignNeeded = true;
+    }
+
+    // Run home slot reassignment once after interaction ends (ball-pit behavior).
+    // Skip when in scroll-spread mode — reassigning homes there changes spread
+    // targets and causes a visible sideways wiggle.
+    if (this.homeReassignNeeded && !interacting && this.globalScrollField < 0.05) {
+      const idleSec = (now - this.lastInteractionTime) * 0.001;
+      if (idleSec > 0.25) {
+        this.reassignHomeSlots();
+        this.homeReassignNeeded = false;
+      }
     }
 
     // Update particles (CPU-side physics)
@@ -1003,10 +1138,6 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     const gField = this.globalScrollField;
 
-    const mx = this.mouseX, my = this.mouseY;
-    const mouseOn = this.mouseActive;
-    const activationR2 = 200 * 200;
-
     const opBoost = gField < 0.03 ? 0 : (gField > 0.6 ? 0.55 : gField / 0.6 * 0.55);
 
     const SPREAD_H_FAR = 0.40;
@@ -1014,160 +1145,141 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const SPREAD_H_NEAR = 0.12;
 
     const isScrolling = this.isScrolling;
+    const fluidActive = this.mouseActive || this.fluidHasEnergy;
+    const settled = this.settledCount;
 
     // === SETTLED ===
-    const settled = this.settledCount;
+    // Spring-return toward assigned home slot (ball-pit: nearest formation slot).
+    // Fluid coupling for cursor interaction. Scroll spread for parallax.
     for (let i = 0; i < settled; i++) {
       const layer = this.pLayer[i];
       const phase = this.pFlickerPhase[i];
 
       let px = this.pPosX[i];
       let py = this.pPosY[i];
-      let isActive = this.pActive[i];
 
-      let baseX = this.pBaseX[i];
-      let baseY = this.pBaseY[i];
-      const birthX = this.pBirthX[i];
-      const birthY = this.pBirthY[i];
-
-      // Gently pull base positions back toward birth positions
-      // Faster when in hero state (gField≈0), slower when scrolled
-      const baseReturnRate = gField < 0.05 ? 0.012 : 0.003;
-      baseX += (birthX - baseX) * baseReturnRate;
-      baseY += (birthY - baseY) * baseReturnRate;
-      this.pBaseX[i] = baseX;
-      this.pBaseY[i] = baseY;
-
-      // Active cooldown
-      if (isActive) {
-        let cd = this.pRate[i] - 1;
-        if (cd <= 0) {
-          cd = 0; isActive = 0;
-          this.pActive[i] = 0;
-          // Liquid settle: shift base toward current position (not snap)
-          // This creates the "reform shape from new location" effect
-          const shiftStrength = 0.4;
-          this.pBaseX[i] = baseX + (px - baseX) * shiftStrength;
-          this.pBaseY[i] = baseY + (py - baseY) * shiftStrength;
-        }
-        this.pRate[i] = cd;
+      // --- Smoothly update base toward assigned home slot ---
+      const homeIdx = this.pHomeSlot[i];
+      const homeX = this.pBirthX[homeIdx];
+      const homeY = this.pBirthY[homeIdx];
+      const baseDx = homeX - this.pBaseX[i];
+      const baseDy = homeY - this.pBaseY[i];
+      if (baseDx * baseDx + baseDy * baseDy < 0.01) {
+        this.pBaseX[i] = homeX;
+        this.pBaseY[i] = homeY;
+      } else {
+        this.pBaseX[i] += baseDx * 0.04;
+        this.pBaseY[i] += baseDy * 0.04;
       }
 
-      // Activation by cursor
-      if (mouseOn) {
-        const dx = px - mx, dy = py - my;
-        if (dx * dx + dy * dy < activationR2) {
-          if (!isActive) { isActive = 1; this.pActive[i] = 1; }
-          this.pRate[i] = 90;
-        }
-      }
-
-      // Formation target: always computed from BIRTH positions
-      // so the original shape is preserved when scrolling back
+      // --- Scroll spread: formation targets ---
       const hash01 = phase * 0.15915494;
-      const birthNormY = birthY / h;
-
+      const homeNormY = homeY / h;
       const zoneTop = layer === LAYER_FAR ? -0.02 : layer === LAYER_MID ? 0.05 : 0.40;
       const zoneBot = layer === LAYER_FAR ? 1.02 : layer === LAYER_MID ? 1.02 : 0.95;
       const spreadDestY = zoneTop + hash01 * (zoneBot - zoneTop);
-      const targetY = (birthNormY + (spreadDestY - birthNormY) * gField) * h;
+      const targetY = (homeNormY + (spreadDestY - homeNormY) * gField) * h;
 
       const spreadH = layer === LAYER_FAR ? SPREAD_H_FAR
         : layer === LAYER_MID ? SPREAD_H_MID : SPREAD_H_NEAR;
-      const centerOff = (birthX / w - 0.5);
-      const targetX = birthX + centerOff * w * spreadH * gField;
+      const centerOff = (homeX / w - 0.5);
+      const targetX = homeX + centerOff * w * spreadH * gField;
 
-      // Add the displacement offset (difference between base and birth)
-      const offX = baseX - birthX;
-      const offY = baseY - birthY;
-      const finalTargetX = targetX + offX;
-      const finalTargetY = targetY + offY;
-
-      if (isActive) {
-        let gi = px * invW + 0.5;
-        let gj = py * invH + 0.5;
-        if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
-        if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
-        const i0 = gi | 0;
-        const j0 = gj | 0;
-        const s = gi - i0;
-        const tt = gj - j0;
-        const s1 = 1 - s;
-        const t1 = 1 - tt;
-        const idx00 = i0 + S * j0;
-        const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
-        const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
-
-        // Liquid-style: moderate fluid coupling, soft spring, smooth damping
-        const coupling = layer === LAYER_NEAR ? 0.40 : layer === LAYER_MID ? 0.25 : 0.12;
-        let vx = this.pVX[i] + flVx * fluidToPixel * coupling;
-        let vy = this.pVY[i] + flVy * fluidToPixel * coupling;
-
-        // Soft spring toward formation target — clamped to prevent shooting
-        let springX = (finalTargetX - px) * 0.015;
-        let springY = (finalTargetY - py) * 0.015;
-        const maxSpring = 1.5;
-        if (springX > maxSpring) springX = maxSpring; else if (springX < -maxSpring) springX = -maxSpring;
-        if (springY > maxSpring) springY = maxSpring; else if (springY < -maxSpring) springY = -maxSpring;
-        vx += springX;
-        vy += springY;
-
-        // Boundary containment
-        if (py < -h * 0.1) vy += 0.12;
-        if (py > h * 1.08) vy -= 0.06;
-        if (px < -w * 0.05) vx += 0.06;
-        if (px > w * 1.05) vx -= 0.06;
-
-        // Smooth damping — particles coast gently
-        vx *= 0.90;
-        vy *= 0.90;
-
-        // Clamp velocity magnitude to prevent shooting
-        const vMagA = vx * vx + vy * vy;
-        const maxVA = 5.0;
-        if (vMagA > maxVA * maxVA) {
-          const scaleA = maxVA / Math.sqrt(vMagA);
-          vx *= scaleA;
-          vy *= scaleA;
-        }
-
-        px += vx;
-        py += vy;
-        this.pVX[i] = vx;
-        this.pVY[i] = vy;
-      } else {
-        // Inactive: position-based lerp for premium smooth transitions
-        // Fast during scroll so particles glide with the page,
-        // softer at rest for organic float feel
-        const lerpRate = isScrolling ? 0.18 : 0.10;
-        px += (finalTargetX - px) * lerpRate;
-        py += (finalTargetY - py) * lerpRate;
-
-        // Dampen any residual velocity from when particle was active
-        let vx = this.pVX[i];
-        let vy = this.pVY[i];
-        if (vx !== 0 || vy !== 0) {
-          const vMag = vx * vx + vy * vy;
-          if (vMag > 0.01) {
-            px += vx;
-            py += vy;
-            vx *= 0.82;
-            vy *= 0.82;
-          } else {
-            vx = 0;
-            vy = 0;
-          }
-          this.pVX[i] = vx;
-          this.pVY[i] = vy;
-        }
-
-        // Ambient drift (gentle organic float)
-        const driftScale = layer === LAYER_NEAR ? 0.55 : layer === LAYER_MID ? 0.28 : 0.10;
-        const freqX = layer === LAYER_NEAR ? 0.05 : layer === LAYER_MID ? 0.07 : 0.09;
-        const freqY = freqX * 0.72;
-        px += Math.cos(time * freqX + phase) * driftScale * 0.08;
-        py += Math.sin(time * freqY + phase * 1.3) * driftScale * 0.05;
+      // During scroll, strong pull toward spread formation
+      if (isScrolling && gField > 0.01) {
+        const snapStr = 0.18;
+        px += (targetX - px) * snapStr;
+        py += (targetY - py) * snapStr;
       }
+
+      // Sample fluid velocity at particle position
+      let gi = px * invW + 0.5;
+      let gj = py * invH + 0.5;
+      if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
+      if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
+      const i0 = gi | 0;
+      const j0 = gj | 0;
+      const s = gi - i0;
+      const tt = gj - j0;
+      const s1 = 1 - s;
+      const t1 = 1 - tt;
+      const idx00 = i0 + S * j0;
+      const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
+      const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
+
+      // Fluid coupling — only when fluid is active (prevents residual jiggle)
+      const coupling = layer === LAYER_NEAR ? 0.50 : layer === LAYER_MID ? 0.30 : 0.12;
+      let vx = this.pVX[i];
+      let vy = this.pVY[i];
+      if (fluidActive) {
+        vx += flVx * fluidToPixel * coupling;
+        vy += flVy * fluidToPixel * coupling;
+      }
+
+      // Spring return toward base position (fades during scroll to avoid fighting scroll spread)
+      const returnK = layer === LAYER_NEAR ? 0.003 : layer === LAYER_MID ? 0.006 : 0.010;
+      vx += (this.pBaseX[i] - px) * returnK * (1 - gField);
+      vy += (this.pBaseY[i] - py) * returnK * (1 - gField);
+
+      // Scroll spread: maintain formation via spring when scrolled
+      if (gField > 0.05) {
+        const holdK = 0.015 * gField;
+        vx += (targetX - px) * holdK;
+        vy += (targetY - py) * holdK;
+      }
+
+      // Boundary containment
+      if (py < -h * 0.1) vy += 0.10;
+      if (py > h * 1.08) vy -= 0.05;
+      if (px < -w * 0.05) vx += 0.05;
+      if (px > w * 1.05) vx -= 0.05;
+
+      // Damping — aggressive at low speed to prevent oscillation/jiggle
+      let damp = layer === LAYER_NEAR ? 0.94 : layer === LAYER_MID ? 0.92 : 0.89;
+      // When fluid is dead, use heavy damping to prevent spring overshoot/oscillation.
+      // Critical damping for holdK=0.015 requires damp ≤ 0.76.
+      if (!fluidActive) damp = Math.min(damp, 0.70);
+      const spd2 = vx * vx + vy * vy;
+      if (spd2 < 0.25) damp = 0.5; // critically damp near rest
+      vx *= damp;
+      vy *= damp;
+
+      // Kill negligible velocity to fully stop
+      if (vx * vx + vy * vy < 0.0001) {
+        vx = 0;
+        vy = 0;
+        if (gField > 0.05 && !fluidActive) {
+          // Snap to scroll-spread target to stop spring-driven creep
+          const snapDx = targetX - px;
+          const snapDy = targetY - py;
+          if (snapDx * snapDx + snapDy * snapDy < 25.0) { // within 5px
+            px = targetX;
+            py = targetY;
+          }
+        } else {
+          // Snap to base when very close to eliminate sub-pixel drift
+          const snapDx = this.pBaseX[i] - px;
+          const snapDy = this.pBaseY[i] - py;
+          if (snapDx * snapDx + snapDy * snapDy < 1.0) {
+            px = this.pBaseX[i];
+            py = this.pBaseY[i];
+          }
+        }
+      }
+
+      // Hard velocity clamp
+      const vMag2 = vx * vx + vy * vy;
+      const maxV = 6.0;
+      if (vMag2 > maxV * maxV) {
+        const sc = maxV / Math.sqrt(vMag2);
+        vx *= sc;
+        vy *= sc;
+      }
+
+      px += vx;
+      py += vy;
+      this.pVX[i] = vx;
+      this.pVY[i] = vy;
 
       this.pPosX[i] = px;
       this.pPosY[i] = py;
@@ -1189,11 +1301,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         }
       }
 
-      if (isActive) {
-        const vx = this.pVX[i], vy = this.pVY[i];
-        const vel = Math.sqrt(vx * vx + vy * vy);
-        targetOp *= 1 - (vel * 0.04 < 0.35 ? vel * 0.04 : 0.35);
-      }
+      // Velocity-based opacity fade (smooth, always applied)
+      const vel = Math.sqrt(vx * vx + vy * vy);
+      const velFade = vel * 0.06;
+      targetOp *= 1 - (velFade < 0.30 ? velFade : 0.30);
 
       this.pOpacity[i] += (targetOp - this.pOpacity[i]) * 0.12;
     }
@@ -1245,7 +1356,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
       const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
 
-      const coupling = layer === LAYER_NEAR ? 0.35 : layer === LAYER_MID ? 0.20 : 0.08;
+      const coupling = layer === LAYER_NEAR ? 0.45 : layer === LAYER_MID ? 0.25 : 0.10;
       let vx = this.pVX[i] + flVx * fluidToPixel * coupling;
       let vy = this.pVY[i] + flVy * fluidToPixel * coupling;
 
@@ -1253,7 +1364,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       vx += (this.pBaseX[i] - px) * rr;
       vy += (this.pBaseY[i] - py) * rr;
 
-      const damp = layer === LAYER_NEAR ? 0.96 : layer === LAYER_MID ? 0.94 : 0.90;
+      const damp = layer === LAYER_NEAR ? 0.93 : layer === LAYER_MID ? 0.90 : 0.86;
       vx *= damp;
       vy *= damp;
 
@@ -1315,6 +1426,13 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.fluidAdvect(1, this.fluidVx, this.fluidVx0, this.fluidVx0, this.fluidVy0, dt);
     this.fluidAdvect(2, this.fluidVy, this.fluidVy0, this.fluidVx0, this.fluidVy0, dt);
     this.fluidProject(this.fluidVx, this.fluidVy, this.fluidVx0, this.fluidVy0);
+
+    // Viscous energy dissipation — prevents velocity accumulation across frames
+    const sz = (this.FLUID_N + 2) * (this.FLUID_N + 2);
+    for (let k = 0; k < sz; k++) {
+      this.fluidVx[k] *= 0.96;
+      this.fluidVy[k] *= 0.96;
+    }
   }
 
   private fluidAddForce(): void {
@@ -1326,10 +1444,13 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     const gi = (this.mouseX / this.width) * N;
     const gj = (this.mouseY / this.height) * N;
-    const gridR = Math.max(2, this.FLUID_CURSOR_PX / Math.max(this.width, this.height) * N);
+    const gridR = Math.max(3, this.FLUID_CURSOR_PX / Math.max(this.width, this.height) * N);
 
-    const fx = mx * this.FLUID_FORCE;
-    const fy = my * this.FLUID_FORCE;
+    // Clamp mouse velocity for viscous feel — prevents impulse spikes
+    const clampedSpeed = Math.min(mouseSpeed, 20);
+    const speedScale = clampedSpeed / mouseSpeed;
+    const fx = mx * speedScale * this.FLUID_FORCE;
+    const fy = my * speedScale * this.FLUID_FORCE;
 
     const iMin = Math.max(1, gi - gridR | 0);
     const iMax = Math.min(N, Math.ceil(gi + gridR));
@@ -1360,7 +1481,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const S = N + 2;
     const a = visc * dt;
     const inv = 1 / (1 + 4 * a);
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < 12; k++) {
       for (let j = 1; j <= N; j++) {
         const base = S * j;
         for (let ii = 1; ii <= N; ii++) {
@@ -1417,7 +1538,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.fluidSetBnd(0, div);
     this.fluidSetBnd(0, p);
 
-    for (let k = 0; k < 4; k++) {
+    for (let k = 0; k < 8; k++) {
       for (let j = 1; j <= N; j++) {
         const base = S * j;
         for (let ii = 1; ii <= N; ii++) {
