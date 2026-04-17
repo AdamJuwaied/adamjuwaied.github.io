@@ -24,15 +24,6 @@ function getMouseDistance(p1: { x: number; y: number }, p2: { x: number; y: numb
   return Math.hypot(p1.x - p2.x, p1.y - p2.y);
 }
 
-function getNewPosition(position: number, offset: number, arr: any[]): number {
-  const realOffset = Math.abs(offset) % arr.length;
-  if (position - realOffset >= 0) {
-    return position - realOffset;
-  } else {
-    return arr.length - (realOffset - position);
-  }
-}
-
 // ── ImageItem ──
 
 class ImageItem {
@@ -68,7 +59,7 @@ class ImageItem {
   }
 }
 
-// ── Variant 7 Engine ──
+// ── Variant 2 Engine ──
 
 class ImageTrailEngine {
   private container: HTMLDivElement;
@@ -82,8 +73,6 @@ class ImageTrailEngine {
   private mousePos = { x: 0, y: 0 };
   private lastMousePos = { x: 0, y: 0 };
   private cacheMousePos = { x: 0, y: 0 };
-  private visibleImagesCount = 0;
-  private visibleImagesTotal = 9;
   private handlePointerMove: (ev: MouseEvent | TouchEvent) => void;
   private initRender: (ev: MouseEvent | TouchEvent) => void;
   private running = true;
@@ -94,7 +83,6 @@ class ImageTrailEngine {
       img => new ImageItem(img as HTMLDivElement)
     );
     this.imagesTotal = this.images.length;
-    this.visibleImagesTotal = Math.min(this.visibleImagesTotal, this.imagesTotal - 1);
 
     this.handlePointerMove = (ev: MouseEvent | TouchEvent) => {
       const rect = container.getBoundingClientRect();
@@ -118,8 +106,8 @@ class ImageTrailEngine {
   private render() {
     if (!this.running) return;
     const distance = getMouseDistance(this.mousePos, this.lastMousePos);
-    this.cacheMousePos.x = lerp(this.cacheMousePos.x, this.mousePos.x, 0.3);
-    this.cacheMousePos.y = lerp(this.cacheMousePos.y, this.mousePos.y, 0.3);
+    this.cacheMousePos.x = lerp(this.cacheMousePos.x, this.mousePos.x, 0.1);
+    this.cacheMousePos.y = lerp(this.cacheMousePos.y, this.mousePos.y, 0.1);
 
     if (distance > this.threshold) {
       this.showNextImage();
@@ -133,11 +121,8 @@ class ImageTrailEngine {
     ++this.zIndexVal;
     this.imgPosition = this.imgPosition < this.imagesTotal - 1 ? this.imgPosition + 1 : 0;
     const img = this.images[this.imgPosition];
-    ++this.visibleImagesCount;
 
     gsap.killTweensOf(img.DOM.el);
-    const scaleValue = gsap.utils.random(0.5, 1.6);
-
     gsap
       .timeline({
         onStart: () => this.onImageActivated(),
@@ -146,39 +131,45 @@ class ImageTrailEngine {
       .fromTo(
         img.DOM.el,
         {
-          scale: scaleValue - Math.max(gsap.utils.random(0.2, 0.6), 0),
-          rotationZ: 0,
           opacity: 1,
+          scale: 0,
           zIndex: this.zIndexVal,
           x: this.cacheMousePos.x - (img.rect?.width ?? 0) / 2,
           y: this.cacheMousePos.y - (img.rect?.height ?? 0) / 2
         },
         {
           duration: 0.4,
-          ease: 'power3',
-          scale: scaleValue,
-          rotationZ: gsap.utils.random(-3, 3),
+          ease: 'power1',
+          scale: 1,
           x: this.mousePos.x - (img.rect?.width ?? 0) / 2,
           y: this.mousePos.y - (img.rect?.height ?? 0) / 2
         },
         0
+      )
+      .fromTo(
+        img.DOM.inner,
+        {
+          scale: 2.8,
+          filter: 'brightness(250%)'
+        },
+        {
+          duration: 0.4,
+          ease: 'power1',
+          scale: 1,
+          filter: 'brightness(100%)'
+        },
+        0
+      )
+      .to(
+        img.DOM.el,
+        {
+          duration: 0.4,
+          ease: 'power2',
+          opacity: 0,
+          scale: 0.2
+        },
+        0.45
       );
-
-    if (this.visibleImagesCount >= this.visibleImagesTotal) {
-      const lastInQueue = getNewPosition(this.imgPosition, this.visibleImagesTotal, this.images);
-      const oldImg = this.images[lastInQueue];
-      gsap.to(oldImg.DOM.el, {
-        duration: 0.4,
-        ease: 'power4',
-        opacity: 0,
-        scale: 1.3,
-        onComplete: () => {
-          if (this.activeImagesCount === 0) {
-            this.isIdle = true;
-          }
-        }
-      });
-    }
   }
 
   private onImageActivated() {
@@ -188,6 +179,7 @@ class ImageTrailEngine {
 
   private onImageDeactivated() {
     this.activeImagesCount--;
+    if (this.activeImagesCount === 0) this.isIdle = true;
   }
 
   destroy() {

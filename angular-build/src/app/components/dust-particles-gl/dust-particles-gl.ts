@@ -265,6 +265,10 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       inset: 0;
       z-index: 2;
       pointer-events: none;
+      /* Force GPU compositing layer — prevents iOS fixed-position jank during scroll */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: transform;
     }
     .vig-gl {
       position: absolute;
@@ -273,8 +277,6 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       height: 100%;
       display: block;
       pointer-events: none;
-      /* No mix-blend-mode needed: shader outputs rgba(0,0,0,darkness),
-         normal (source-over) compositing already produces backdrop*(1-darkness). */
     }
     .dust-gl {
       position: absolute;
@@ -285,6 +287,12 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       pointer-events: none;
       mix-blend-mode: screen;
       z-index: auto;
+    }
+    /* Mobile: hide WebGL vignette canvas, use CSS vignette instead */
+    @media (max-width: 1023px) and (hover: none) {
+      .vig-gl {
+        display: none !important;
+      }
     }
   `],
 })
@@ -297,7 +305,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
   private isBrowser: boolean;
   private renderer!: THREE.WebGLRenderer;
-  private vigRenderer!: THREE.WebGLRenderer;
+  private vigRenderer!: THREE.WebGLRenderer | null; // null on mobile (CSS vignette instead)
   private scene!: THREE.Scene;
   private camera!: THREE.OrthographicCamera;
 
@@ -366,6 +374,17 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private lastScrollChangeTime = 0;
   private prevScrollInput = 0;
   private isScrolling = false;
+  // Direct scroll progress — computed from window.scrollY, bypasses Angular input delay
+  private directScrollProgress = 0;
+  // Scroll velocity tracking — drives particle displacement force
+  private scrollVelocity = 0;
+  private prevScrollY = 0;
+  private smoothScrollVelocity = 0;
+
+  private mobileFrameSkip = 0; // throttle: render every Nth frame on mobile
+
+  // CSS vignette element for mobile (replaces WebGL vignette canvas)
+  private cssVignetteEl: HTMLElement | null = null;
 
   // Fluid energy tracking — lets fluid dissipate naturally after mouse stops
   private fluidHasEnergy = false;
@@ -403,14 +422,15 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private boundMouseLeave!: () => void;
   private boundTouchMove!: (e: TouchEvent) => void;
   private boundTouchEnd!: () => void;
+  private boundDirectScroll!: () => void;
 
   private get flowCount(): number {
-    if (this.isMobile) return 60;
+    if (this.isMobile) return 10;
     if (this.width < 768) return 200;
     return 500;
   }
   private get settledCount(): number {
-    if (this.isMobile) return 800;
+    if (this.isMobile) return 150;
     if (this.width < 768) return 2200;
     return 5500;
   }
@@ -423,16 +443,21 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     if (!this.isBrowser) return;
 
     this.isMobile = window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
-    if (this.isMobile) this.FLUID_N = 24;
+    if (this.isMobile) this.FLUID_N = 16;
 
-    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 1.0 : 1.5);
+    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.75 : 1.5);
     this.width = window.innerWidth;
     this.height = window.innerHeight;
 
     this.initThree();
     this.initFluidGrid();
     this.initParticles();
-    this.initVignette();
+    if (!this.isMobile) {
+      this.initVignette();
+    } else {
+      this.vigRenderer = null;
+      this.initCssVignette();
+    }
 
 
 
@@ -441,12 +466,15 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.boundMouseLeave = this.onMouseLeave.bind(this);
     this.boundTouchMove = this.onTouchMove.bind(this);
     this.boundTouchEnd = this.onTouchEnd.bind(this);
+    this.boundDirectScroll = this.onDirectScroll.bind(this);
 
     window.addEventListener('resize', this.boundResize);
     window.addEventListener('mousemove', this.boundMouseMove);
     window.addEventListener('mouseleave', this.boundMouseLeave);
-    window.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    window.addEventListener('touchmove', this.boundTouchMove, { passive: true });
     window.addEventListener('touchend', this.boundTouchEnd);
+    // Direct scroll listener — bypasses Angular input chain for zero-delay scroll tracking
+    window.addEventListener('scroll', this.boundDirectScroll, { passive: true });
 
     this.animate(0);
   }
@@ -458,12 +486,14 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     window.removeEventListener('mouseleave', this.boundMouseLeave);
     window.removeEventListener('touchmove', this.boundTouchMove);
     window.removeEventListener('touchend', this.boundTouchEnd);
+    window.removeEventListener('scroll', this.boundDirectScroll);
 
     this.renderer?.dispose();
     this.vigRenderer?.dispose();
     this.particleGeometry?.dispose();
     this.particleMaterial?.dispose();
     this.vignetteMaterial?.dispose();
+    this.cssVignetteEl?.remove();
   }
 
   // ===================== THREE.JS SETUP =====================
@@ -482,17 +512,19 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.renderer.setSize(this.width, this.height);
     this.renderer.autoClear = false;
 
-    // Vignette renderer — separate canvas, same size
-    const vigCanvas = this.vigCanvasRef.nativeElement;
-    this.vigRenderer = new THREE.WebGLRenderer({
-      canvas: vigCanvas,
-      alpha: true,
-      antialias: false,
-      premultipliedAlpha: true,
-      powerPreference: 'high-performance',
-    });
-    this.vigRenderer.setPixelRatio(this.dpr);
-    this.vigRenderer.setSize(this.width, this.height);
+    // Vignette renderer — desktop only (mobile uses CSS vignette)
+    if (!this.isMobile) {
+      const vigCanvas = this.vigCanvasRef.nativeElement;
+      this.vigRenderer = new THREE.WebGLRenderer({
+        canvas: vigCanvas,
+        alpha: true,
+        antialias: false,
+        premultipliedAlpha: true,
+        powerPreference: 'high-performance',
+      });
+      this.vigRenderer.setPixelRatio(this.dpr);
+      this.vigRenderer.setSize(this.width, this.height);
+    }
 
     // Particle scene: orthographic, maps pixels to clip space
     this.scene = new THREE.Scene();
@@ -647,17 +679,36 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.vignetteScene.add(vigQuad);
   }
 
+  /** Mobile-only: CSS radial gradient vignette instead of WebGL canvas */
+  private initCssVignette(): void {
+    const el = document.createElement('div');
+    el.style.cssText = `
+      position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 85% 90% at 50% 42%,
+        transparent 0%,
+        rgba(0,0,0,0.15) 40%,
+        rgba(0,0,0,0.55) 70%,
+        rgba(0,0,0,0.85) 100%);
+    `;
+    this.cssVignetteEl = el;
+    // Insert before the dust canvas so it renders behind particles
+    const host = this.canvasRef.nativeElement.parentElement;
+    if (host) host.insertBefore(el, host.firstChild);
+  }
+
   // ===================== EVENT HANDLERS =====================
 
   private onResize(): void {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 1.0 : 1.5);
+    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.75 : 1.5);
 
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(this.width, this.height);
-    this.vigRenderer.setPixelRatio(this.dpr);
-    this.vigRenderer.setSize(this.width, this.height);
+    if (this.vigRenderer) {
+      this.vigRenderer.setPixelRatio(this.dpr);
+      this.vigRenderer.setSize(this.width, this.height);
+    }
 
     // Update uniforms
     if (this.particleMaterial) {
@@ -693,7 +744,6 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private onMouseLeave(): void { this.mouseActive = false; }
 
   private onTouchMove(e: TouchEvent): void {
-    if (this.lockTouch) e.preventDefault();
     if (e.touches.length > 0) {
       this.prevMouseX = this.mouseX;
       this.prevMouseY = this.mouseY;
@@ -705,6 +755,18 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   }
 
   private onTouchEnd(): void { this.mouseActive = false; }
+
+  /** Direct scroll handler — reads scrollY without Angular input chain delay */
+  private onDirectScroll(): void {
+    const scrollY = window.scrollY || window.pageYOffset;
+    const vh = window.innerHeight;
+    const transitionDist = vh * 0.38;
+    this.directScrollProgress = Math.min(1, Math.max(0, scrollY / transitionDist));
+    // Track raw scroll velocity (px/event) for particle displacement force
+    const delta = scrollY - this.prevScrollY;
+    this.scrollVelocity = delta;
+    this.prevScrollY = scrollY;
+  }
 
   // ===================== BEZIER HELPERS =====================
 
@@ -929,7 +991,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     // nearby swap partner that reduces total travel distance.
     // Multiple passes propagate swaps like a cascade (ball-pit effect).
     const displacedThresh = 100; // 10px squared
-    for (let pass = 0; pass < 5; pass++) {
+    const maxPasses = this.isMobile ? 2 : 5;
+    for (let pass = 0; pass < maxPasses; pass++) {
       let swapCount = 0;
       for (let i = 0; i < n; i++) {
         const hi = hs[i];
@@ -989,38 +1052,48 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   // ===================== ANIMATION LOOP =====================
 
   private animate = (timestamp: number): void => {
+    this.animationId = requestAnimationFrame(this.animate);
+
+    // Mobile frame throttle: render every 3rd frame normally, every frame during scroll.
+    // During scroll we must update every frame so particles track scroll position.
+    if (this.isMobile) {
+      this.mobileFrameSkip++;
+      if (!this.isScrolling && this.mobileFrameSkip % 3 !== 0) {
+        return;
+      }
+    }
+
     this.time = timestamp * 0.001;
     this.frameCount++;
 
     const now = performance.now();
 
     // Track scroll changes to detect active scrolling
-    if (Math.abs(this.scrollProgress - this.prevScrollInput) > 0.001) {
+    // Use directScrollProgress for instant detection (bypasses Angular input delay)
+    const effectiveScroll = this.directScrollProgress > 0.001 ? this.directScrollProgress : this.scrollProgress;
+    if (Math.abs(effectiveScroll - this.prevScrollInput) > 0.001) {
       this.lastScrollChangeTime = now;
-      this.prevScrollInput = this.scrollProgress;
+      this.prevScrollInput = effectiveScroll;
     }
     const isScrolling = (now - this.lastScrollChangeTime) < 200;
     this.isScrolling = isScrolling;
 
-    // On mobile during active scroll, run at half frame rate (30fps)
-    // This is the single biggest perf win — halves ALL work during scroll
-    if (this.isMobile && isScrolling && (this.frameCount & 1) === 0) {
-      this.animationId = requestAnimationFrame(this.animate);
-      return;
-    }
-
     const w = this.width, h = this.height;
 
-    // Smooth scroll — track nearly instantly so particles don't lag
-    const scrollLerp = 0.85;
-    this.smoothScrollProgress += (this.scrollProgress - this.smoothScrollProgress) * scrollLerp;
+    // Smooth scroll — fast follow on all platforms to avoid visual lag
+    const scrollLerp = this.isMobile ? 1.0 : 0.95;
+    this.smoothScrollProgress += (effectiveScroll - this.smoothScrollProgress) * scrollLerp;
     const sp = this.smoothScrollProgress;
 
-    // Hero bloom
-    const particleRaw = sp < 0.10 ? 0 : (sp > 0.85 ? 1 : (sp - 0.10) / 0.75);
+    // Hero bloom — reduced dead zone for faster response
+    const particleRaw = sp < 0.02 ? 0 : (sp > 0.85 ? 1 : (sp - 0.02) / 0.83);
     const pri = 1 - particleRaw;
     const heroBloom = 1 - pri * pri * pri;
     this.globalScrollField = heroBloom;
+
+    // Smooth scroll velocity for particle displacement (exponential decay)
+    this.smoothScrollVelocity += (this.scrollVelocity - this.smoothScrollVelocity) * 0.3;
+    this.scrollVelocity *= 0.5; // decay raw velocity between events
 
     // Cursor smoothing
     const cursorLerp = 0.35;
@@ -1050,10 +1123,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       this.mouseVy *= 0.88;
     }
 
-    // Fluid sim: run while mouse is active OR while fluid still has energy
+    // Fluid sim: run while mouse is active OR while fluid still has energy OR during scroll
     // This lets the fluid dissipate naturally after the cursor stops,
     // giving particles that liquid coasting feel.
-    if (!isScrolling && (this.mouseActive || this.fluidHasEnergy)) {
+    if (this.mouseActive || this.fluidHasEnergy) {
       this.fluidStep();
 
       // Check if fluid still has meaningful velocity
@@ -1105,18 +1178,26 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     // Update uniforms
     this.particleMaterial.uniforms['uTime'].value = this.time;
-    this.vignetteMaterial.uniforms['uScrollField'].value = this.globalScrollField;
-    this.vignetteMaterial.uniforms['uCursor'].value.set(this.cursorSmoothedX, this.cursorSmoothedY);
-    this.vignetteMaterial.uniforms['uCursorStrength'].value = this.cursorStrength;
+    if (this.vignetteMaterial) {
+      this.vignetteMaterial.uniforms['uScrollField'].value = this.globalScrollField;
+      this.vignetteMaterial.uniforms['uCursor'].value.set(this.cursorSmoothedX, this.cursorSmoothedY);
+      this.vignetteMaterial.uniforms['uCursorStrength'].value = this.cursorStrength;
+    }
 
     // Render particles to dust canvas
     this.renderer.clear();
     this.renderer.render(this.scene, this.camera);
 
-    // Render vignette
-    this.vigRenderer.render(this.vignetteScene, this.vignetteCamera);
+    // Render vignette — desktop only (mobile uses CSS vignette)
+    if (this.vigRenderer) {
+      this.vigRenderer.render(this.vignetteScene, this.vignetteCamera);
+    }
 
-    this.animationId = requestAnimationFrame(this.animate);
+    // Update CSS vignette opacity on mobile based on scroll
+    if (this.cssVignetteEl) {
+      const scrollDarkening = this.globalScrollField * 0.4;
+      this.cssVignetteEl.style.opacity = String(Math.min(1, 1 + scrollDarkening));
+    }
   };
 
   // ===================== PARTICLE UPDATE (CPU) =====================
@@ -1145,9 +1226,12 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const SPREAD_H_NEAR = 0.12;
 
     const isScrolling = this.isScrolling;
+    const isMobile = this.isMobile;
     const fluidActive = this.mouseActive || this.fluidHasEnergy;
     const settled = this.settledCount;
-
+    // Scroll velocity displacement force — pushes particles like wind
+    const scrollVel = this.smoothScrollVelocity;
+    const absScrollVel = Math.abs(scrollVel);
     // === SETTLED ===
     // Spring-return toward assigned home slot (ball-pit: nearest formation slot).
     // Fluid coupling for cursor interaction. Scroll spread for parallax.
@@ -1185,33 +1269,57 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       const centerOff = (homeX / w - 0.5);
       const targetX = homeX + centerOff * w * spreadH * gField;
 
-      // During scroll, strong pull toward spread formation
-      if (isScrolling && gField > 0.01) {
-        const snapStr = 0.18;
+      // During scroll, strong pull toward spread formation + scroll velocity push
+      if (isScrolling && gField > 0.005) {
+        // Snap to spread formation — strong on both platforms
+        const snapStr = isMobile ? 0.80 : 0.45;
         px += (targetX - px) * snapStr;
         py += (targetY - py) * snapStr;
+        // Dampen velocity during scroll snap
+        this.pVX[i] *= 0.3;
+        this.pVY[i] *= 0.3;
       }
 
-      // Sample fluid velocity at particle position
-      let gi = px * invW + 0.5;
-      let gj = py * invH + 0.5;
-      if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
-      if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
-      const i0 = gi | 0;
-      const j0 = gj | 0;
-      const s = gi - i0;
-      const tt = gj - j0;
-      const s1 = 1 - s;
-      const t1 = 1 - tt;
-      const idx00 = i0 + S * j0;
-      const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
-      const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
+      // Scroll velocity displacement — parallax push per layer
+      // Near particles move more, far particles move less (depth parallax)
+      if (absScrollVel > 0.5) {
+        const parallaxMul = layer === LAYER_NEAR ? 1.8 : layer === LAYER_MID ? 1.0 : 0.4;
+        const pushForce = scrollVel * parallaxMul * 0.15;
+        this.pVY[i] += pushForce;
+        // Slight horizontal scatter from scroll turbulence
+        const scatter = (hash01 - 0.5) * absScrollVel * parallaxMul * 0.04;
+        this.pVX[i] += scatter;
+      }
 
-      // Fluid coupling — only when fluid is active (prevents residual jiggle)
-      const coupling = layer === LAYER_NEAR ? 0.50 : layer === LAYER_MID ? 0.30 : 0.12;
+      // On mobile during scroll, skip all physics — just write position and opacity.
+      // This keeps JS work minimal so scroll compositor stays butter-smooth.
+      if (isMobile && isScrolling) {
+        this.pPosX[i] = px;
+        this.pPosY[i] = py;
+        // Quick opacity update without flicker/drift
+        const targetOp = this.pBaseOpacity[i] * (gField > 0.01 ? (1 + opBoost) : 1);
+        this.pOpacity[i] += (targetOp - this.pOpacity[i]) * 0.3;
+        continue;
+      }
+
+      // Fluid coupling — only sample and apply when fluid is active
       let vx = this.pVX[i];
       let vy = this.pVY[i];
       if (fluidActive) {
+        let gi = px * invW + 0.5;
+        let gj = py * invH + 0.5;
+        if (gi < 0.5) gi = 0.5; else if (gi > N + 0.5) gi = N + 0.5;
+        if (gj < 0.5) gj = 0.5; else if (gj > N + 0.5) gj = N + 0.5;
+        const i0 = gi | 0;
+        const j0 = gj | 0;
+        const s = gi - i0;
+        const tt = gj - j0;
+        const s1 = 1 - s;
+        const t1 = 1 - tt;
+        const idx00 = i0 + S * j0;
+        const flVx = s1 * (t1 * fvx[idx00] + tt * fvx[idx00 + S]) + s * (t1 * fvx[idx00 + 1] + tt * fvx[idx00 + S + 1]);
+        const flVy = s1 * (t1 * fvy[idx00] + tt * fvy[idx00 + S]) + s * (t1 * fvy[idx00 + 1] + tt * fvy[idx00 + S + 1]);
+        const coupling = layer === LAYER_NEAR ? 0.50 : layer === LAYER_MID ? 0.30 : 0.12;
         vx += flVx * fluidToPixel * coupling;
         vy += flVy * fluidToPixel * coupling;
       }
@@ -1222,8 +1330,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       vy += (this.pBaseY[i] - py) * returnK * (1 - gField);
 
       // Scroll spread: maintain formation via spring when scrolled
-      if (gField > 0.05) {
-        const holdK = 0.015 * gField;
+      if (gField > 0.03) {
+        const holdK = 0.06 * gField;
         vx += (targetX - px) * holdK;
         vy += (targetY - py) * holdK;
       }
@@ -1234,11 +1342,15 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       if (px < -w * 0.05) vx += 0.05;
       if (px > w * 1.05) vx -= 0.05;
 
-      // Damping — aggressive at low speed to prevent oscillation/jiggle
-      let damp = layer === LAYER_NEAR ? 0.94 : layer === LAYER_MID ? 0.92 : 0.89;
-      // When fluid is dead, use heavy damping to prevent spring overshoot/oscillation.
-      // Critical damping for holdK=0.015 requires damp ≤ 0.76.
-      if (!fluidActive) damp = Math.min(damp, 0.70);
+      // Damping — tuned for scroll responsiveness without jiggle
+      let damp = layer === LAYER_NEAR ? 0.92 : layer === LAYER_MID ? 0.90 : 0.86;
+      // During scroll, allow scroll velocity force to carry through
+      if (isScrolling) {
+        damp = layer === LAYER_NEAR ? 0.88 : layer === LAYER_MID ? 0.85 : 0.80;
+      } else if (!fluidActive) {
+        // When idle, heavy damping to prevent spring overshoot
+        damp = Math.min(damp, 0.65);
+      }
       const spd2 = vx * vx + vy * vy;
       if (spd2 < 0.25) damp = 0.5; // critically damp near rest
       vx *= damp;
@@ -1267,9 +1379,9 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         }
       }
 
-      // Hard velocity clamp
+      // Hard velocity clamp — higher during scroll to allow scroll push
       const vMag2 = vx * vx + vy * vy;
-      const maxV = 6.0;
+      const maxV = isScrolling ? 14.0 : 6.0;
       if (vMag2 > maxV * maxV) {
         const sc = maxV / Math.sqrt(vMag2);
         vx *= sc;
@@ -1280,6 +1392,16 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       py += vy;
       this.pVX[i] = vx;
       this.pVY[i] = vy;
+
+      // Ambient drift — gentle organic float (position-based, no velocity)
+      // Only when not scrolling so it doesn't fight scroll snap
+      if (!isScrolling) {
+        const driftScale = layer === LAYER_NEAR ? 0.55 : layer === LAYER_MID ? 0.28 : 0.10;
+        const freqX = layer === LAYER_NEAR ? 0.05 : layer === LAYER_MID ? 0.07 : 0.09;
+        const freqY = freqX * 0.72;
+        px += Math.cos(time * freqX + phase) * driftScale * 0.08;
+        py += Math.sin(time * freqY + phase * 1.3) * driftScale * 0.05;
+      }
 
       this.pPosX[i] = px;
       this.pPosY[i] = py;
@@ -1308,10 +1430,11 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
       this.pOpacity[i] += (targetOp - this.pOpacity[i]) * 0.12;
     }
-
     // === FLOW ===
-    const n = this.pCount;
-    for (let i = settled; i < n; i++) {
+    // Skip flow particles on mobile during scroll — only 20 anyway and not worth the cost
+    if (isMobile && isScrolling) return;
+    const flowEnd = this.pCount;
+    for (let i = settled; i < flowEnd; i++) {
       const layer = this.pLayer[i];
 
       let t = this.pT[i];
@@ -1481,7 +1604,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const S = N + 2;
     const a = visc * dt;
     const inv = 1 / (1 + 4 * a);
-    for (let k = 0; k < 12; k++) {
+    const diffIters = this.isMobile ? 4 : 12;
+    for (let k = 0; k < diffIters; k++) {
       for (let j = 1; j <= N; j++) {
         const base = S * j;
         for (let ii = 1; ii <= N; ii++) {
@@ -1538,7 +1662,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.fluidSetBnd(0, div);
     this.fluidSetBnd(0, p);
 
-    for (let k = 0; k < 8; k++) {
+    const projIters = this.isMobile ? 4 : 8;
+    for (let k = 0; k < projIters; k++) {
       for (let j = 1; j <= N; j++) {
         const base = S * j;
         for (let ii = 1; ii <= N; ii++) {
