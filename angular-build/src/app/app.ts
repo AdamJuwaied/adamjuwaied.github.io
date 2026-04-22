@@ -26,6 +26,7 @@ export class App {
   protected readonly isHomePage = signal(true);
   protected readonly isContactPage = signal(false);
   protected readonly homeScrollProgress = signal(0);
+  protected readonly isMobileDevice = signal(false);
 
   private readonly isBrowser: boolean;
 
@@ -34,6 +35,9 @@ export class App {
 
     if (this.isBrowser) {
       this.updatePatternGrid();
+      this.isMobileDevice.set(
+        window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024)
+      );
 
       // Listen for scroll progress from homepage
       window.addEventListener('homepage-scroll', ((e: CustomEvent) => {

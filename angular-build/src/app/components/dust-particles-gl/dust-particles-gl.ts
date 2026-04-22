@@ -7,6 +7,7 @@ import {
   OnInit,
   PLATFORM_ID,
   ViewChild,
+  inject,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import * as THREE from 'three';
@@ -268,7 +269,7 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       /* Force GPU compositing layer — prevents iOS fixed-position jank during scroll */
       -webkit-transform: translateZ(0);
       transform: translateZ(0);
-      will-change: transform;
+      /* will-change toggled via JS in onDirectScroll() — only active during scroll */
     }
     .vig-gl {
       position: absolute;
@@ -289,9 +290,13 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       z-index: auto;
     }
     /* Mobile: hide WebGL vignette canvas, use CSS vignette instead */
+    /* Mobile: normal blend — screen mode forces iOS Safari to use software compositing */
     @media (max-width: 1023px) and (hover: none) {
       .vig-gl {
         display: none !important;
+      }
+      .dust-gl {
+        mix-blend-mode: normal;
       }
     }
   `],
@@ -304,6 +309,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   @Input() scrollProgress = 0;
 
   private isBrowser: boolean;
+  private readonly hostEl = inject(ElementRef<HTMLElement>);
+  private willChangeTimer: ReturnType<typeof setTimeout> | null = null;
   private renderer!: THREE.WebGLRenderer;
   private vigRenderer!: THREE.WebGLRenderer | null; // null on mobile (CSS vignette instead)
   private scene!: THREE.Scene;
@@ -425,12 +432,12 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private boundDirectScroll!: () => void;
 
   private get flowCount(): number {
-    if (this.isMobile) return 10;
+    if (this.isMobile) return 0;
     if (this.width < 768) return 200;
     return 500;
   }
   private get settledCount(): number {
-    if (this.isMobile) return 150;
+    if (this.isMobile) return 80;
     if (this.width < 768) return 2200;
     return 5500;
   }
@@ -445,7 +452,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.isMobile = window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
     if (this.isMobile) this.FLUID_N = 16;
 
-    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.75 : 1.5);
+    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.5 : 1.5);
     this.width = window.innerWidth;
     this.height = window.innerHeight;
 
@@ -701,7 +708,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private onResize(): void {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.75 : 1.5);
+    this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.5 : 1.5);
 
     this.renderer.setPixelRatio(this.dpr);
     this.renderer.setSize(this.width, this.height);
@@ -766,6 +773,13 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     const delta = scrollY - this.prevScrollY;
     this.scrollVelocity = delta;
     this.prevScrollY = scrollY;
+    // Pin will-change only during scroll, release it 500ms after scroll stops
+    this.hostEl.nativeElement.style.willChange = 'transform';
+    if (this.willChangeTimer) clearTimeout(this.willChangeTimer);
+    this.willChangeTimer = setTimeout(() => {
+      this.hostEl.nativeElement.style.willChange = 'auto';
+      this.willChangeTimer = null;
+    }, 500);
   }
 
   // ===================== BEZIER HELPERS =====================

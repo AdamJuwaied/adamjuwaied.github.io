@@ -24,7 +24,7 @@ class="app-shell__background-glyph"
 <div class="app-shell__background-ambient"></div>
 </div>
 
-@if (isHomePage()) {
+@if (isHomePage() && !isMobileDevice()) {
 <app-light-rays
 raysOrigin="top-right"
 raysColor="#d4923e"
@@ -34,7 +34,7 @@ raysColor="#d4923e"
 [pulsating]="false"
 [fadeDistance]="0.55"
 [saturation]="1"
-[followMouse]="true"
+[followMouse]="false"
 [mouseInfluence]="0.18"
 [noiseAmount]="0.40"
 [distortion]="0"
@@ -43,7 +43,10 @@ raysColor="#d4923e"
 }
 
 @if (isHomePage() || isContactPage()) {
-<app-dust-particles-gl [lockTouch]="false" [scrollProgress]="homeScrollProgress()"></app-dust-particles-gl>
+  @defer (on idle) {
+    <app-dust-particles-gl [lockTouch]="false" [scrollProgress]="homeScrollProgress()"></app-dust-particles-gl>
+  } @placeholder {
+  }
 }
 
 <div class="app-shell__content">
