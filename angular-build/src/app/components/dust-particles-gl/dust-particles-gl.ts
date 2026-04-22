@@ -389,6 +389,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
   private smoothScrollVelocity = 0;
 
   private mobileFrameSkip = 0; // throttle: render every Nth frame on mobile
+  private idleTimer: ReturnType<typeof setTimeout> | null = null;
+  private isRestartScheduled = false;
 
   // CSS vignette element for mobile (replaces WebGL vignette canvas)
   private cssVignetteEl: HTMLElement | null = null;
@@ -437,7 +439,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     return 500;
   }
   private get settledCount(): number {
-    if (this.isMobile) return 80;
+    if (this.isMobile) return 40;
     if (this.width < 768) return 2200;
     return 5500;
   }
@@ -451,6 +453,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
     this.isMobile = window.innerWidth < 768 || ('ontouchstart' in window && window.innerWidth < 1024);
     if (this.isMobile) this.FLUID_N = 16;
+    if (this.isMobile) this.lastScrollChangeTime = performance.now();
 
     this.dpr = Math.min(window.devicePixelRatio, this.isMobile ? 0.5 : 1.5);
     this.width = window.innerWidth;
@@ -488,6 +491,10 @@ export class DustParticlesGL implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if (this.animationId) cancelAnimationFrame(this.animationId);
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = null;
+    }
     window.removeEventListener('resize', this.boundResize);
     window.removeEventListener('mousemove', this.boundMouseMove);
     window.removeEventListener('mouseleave', this.boundMouseLeave);
@@ -501,6 +508,18 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     this.particleMaterial?.dispose();
     this.vignetteMaterial?.dispose();
     this.cssVignetteEl?.remove();
+  }
+
+  private restartRaf(): void {
+    // Guard against double-invoke: onDirectScroll and onTouchMove can both fire
+    // in the same event-loop tick with animationId === null.
+    if (this.animationId === null && !this.isRestartScheduled) {
+      this.isRestartScheduled = true;
+      requestAnimationFrame((t) => {
+        this.isRestartScheduled = false;
+        if (this.animationId === null) this.animate(t);
+      });
+    }
   }
 
   // ===================== THREE.JS SETUP =====================
@@ -759,6 +778,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       this.mouseActive = true;
       this.mouseLastMoveTime = performance.now();
     }
+    if (this.isMobile) this.restartRaf();
   }
 
   private onTouchEnd(): void { this.mouseActive = false; }
@@ -780,6 +800,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       this.hostEl.nativeElement.style.willChange = 'auto';
       this.willChangeTimer = null;
     }, 500);
+    if (this.isMobile) this.restartRaf();
   }
 
   // ===================== BEZIER HELPERS =====================
@@ -1077,6 +1098,29 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       }
     }
 
+    if (this.isMobile) {
+      const effectivelyIdle = this.directScrollProgress < 0.001
+        && !this.mouseActive
+        && !this.fluidHasEnergy
+        && (performance.now() - this.lastScrollChangeTime) > 200;
+      if (effectivelyIdle) {
+        if (!this.idleTimer) {
+          this.idleTimer = setTimeout(() => {
+            if (this.animationId !== null) {
+              cancelAnimationFrame(this.animationId);
+              this.animationId = null;
+            }
+            this.idleTimer = null;
+          }, 3000);
+        }
+      } else {
+        if (this.idleTimer) {
+          clearTimeout(this.idleTimer);
+          this.idleTimer = null;
+        }
+      }
+    }
+
     this.time = timestamp * 0.001;
     this.frameCount++;
 
@@ -1140,7 +1184,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
     // Fluid sim: run while mouse is active OR while fluid still has energy OR during scroll
     // This lets the fluid dissipate naturally after the cursor stops,
     // giving particles that liquid coasting feel.
-    if (this.mouseActive || this.fluidHasEnergy) {
+    const skipFluid = this.isMobile && this.isScrolling;
+    if (!skipFluid && (this.mouseActive || this.fluidHasEnergy)) {
       this.fluidStep();
 
       // Check if fluid still has meaningful velocity

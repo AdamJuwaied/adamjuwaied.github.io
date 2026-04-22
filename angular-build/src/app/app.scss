@@ -231,3 +231,30 @@
     display: none;
   }
 }
+
+@media (max-width: 1023px) and (hover: none) {
+  .app-shell__background-focal-blur {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .app-shell__background-pattern {
+    &::after {
+      mix-blend-mode: normal;
+    }
+  }
+  .app-shell__background-texture {
+    mix-blend-mode: normal;
+    filter: none;
+    &::before {
+      mix-blend-mode: normal;
+      filter: none;
+    }
+    &::after {
+      mix-blend-mode: normal;
+    }
+  }
+  .app-shell__background-glyph {
+    mix-blend-mode: normal;
+    filter: none;
+  }
+}
