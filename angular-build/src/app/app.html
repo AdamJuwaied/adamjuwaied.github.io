@@ -1,7 +1,7 @@
 <div class="app-shell">
 <div class="app-shell__background" aria-hidden="true">
 <div class="app-shell__background-color"></div>
-@if (isHomePage() && !isMobileDevice()) {
+@if (isHomePage()) {
 <div class="app-shell__background-pattern" [style.opacity]="1 - homeScrollProgress() * 2.5">
 @for (patternItem of patternItems(); track patternItem) {
 <span
