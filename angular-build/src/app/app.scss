@@ -213,6 +213,23 @@
   min-height: 100vh;
 }
 
+// Dark tint that fades in as you scroll into content — provides contrast
+// so text is readable over the blurred particles.
+// z-index: 2 = above particles (z:-1) but below content glass (z:5).
+.app-shell__content-blur {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: transparent;
+  will-change: opacity;
+  transition: opacity 0.05s linear;
+}
+
+@media (max-width: 768px) {
+  .app-shell__content-blur { display: none; }
+}
+
 @media (max-width: 768px) {
   :host {
     --app-background-highlight: rgba(138, 64, 97, 0.18);

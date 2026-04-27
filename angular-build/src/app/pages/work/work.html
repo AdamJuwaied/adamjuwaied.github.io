@@ -1,90 +1,194 @@
-<canvas #bgCanvas class="work-bg-canvas"></canvas>
 <div class="work-page">
-  <!-- Terminal Header -->
-  <div class="terminal-header">
-    <span class="prompt">C:\Work&gt;</span><span class="command">Tree</span>
-  </div>
 
-  <!-- Tree Structure -->
-  <div class="tree" #treeContainer>
-    <!-- Single continuous spine -->
-    <div class="timeline-spine" #timelineSpine></div>
-
-    <!-- Research Branch -->
-    <div class="tree-branch">
-      <div class="branch-label">.Research</div>
-
-      <div class="branch-items">
-        <!-- Augmented Reality -->
-        <div class="tree-item">
-          <div class="item-header">.Augmented Reality</div>
-          <div class="item-content">
-            <div class="item-details">
-              <app-video-player
-                src="images/ARVideo.mp4"
-                title="Watch Demo"
-              ></app-video-player>
-              <ul class="bullet-list">
-                <li>Created Multiplayer Platform</li>
-                <li>Optimized existing code by 12%</li>
-                <li>Maintained Organization / Clean Code</li>
-                <li>Great Communication Skills</li>
-                <li>Agile Environment</li>
-              </ul>
-            </div>
-            <div class="item-lottie" id="augmented"></div>
-          </div>
-        </div>
-
-        <!-- Synthetic Data -->
-        <div class="tree-item">
-          <div class="item-header">.Synthetic Data</div>
-          <div class="item-content">
-            <div class="item-details">
-              <app-video-player
-                src="images/SyntheticData.mp4"
-                title="Watch Demo"
-              ></app-video-player>
-              <ul class="bullet-list">
-                <li>High Quality Software</li>
-                <li>Created Synthetic Data For ML</li>
-                <li>Presented to Ivy League Universities</li>
-              </ul>
-            </div>
-            <div class="item-lottie" id="coding"></div>
-          </div>
-        </div>
+  <!-- ── Page Hero ── -->
+  <header class="work-hero">
+    <span class="hero-kicker">[Selected Work ── 2019 / 2026]</span>
+    <h1 class="hero-title">Work</h1>
+    <div class="hero-stats">
+      <div class="stat">
+        <span class="stat-num">3</span>
+        <span class="stat-label">Projects</span>
+      </div>
+      <span class="stat-sep">·</span>
+      <div class="stat">
+        <span class="stat-num">2</span>
+        <span class="stat-label">Jobs</span>
+      </div>
+      <span class="stat-sep">·</span>
+      <div class="stat">
+        <span class="stat-num">2</span>
+        <span class="stat-label">Awards</span>
       </div>
     </div>
+  </header>
 
-    <!-- Internship Branch -->
-    <div class="tree-branch internship-branch">
-      <div class="branch-label">.Internship</div>
-
-      <div class="branch-items">
-        <!-- NASA -->
-        <div class="tree-item">
-          <div class="item-header">.NASA</div>
-          <div class="item-content">
-            <div class="item-details">
-              <img src="images/SpacePic.jpg" alt="NASA Weather Balloon" class="nasa-image" />
-              <ul class="bullet-list">
-                <li>Sole Coder for Python and SQL</li>
-                <li>Won Second Place in our First Year!</li>
-                <li>80,000 ft. in Altitude</li>
-                <li>Completed in Timely Fashion</li>
-              </ul>
-            </div>
-            <div class="item-lottie" id="balloon"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Image trail overlay covering the Internship area -->
-      <div class="image-trail-overlay">
-        <app-image-trail [items]="spacePicItems"></app-image-trail>
-      </div>
+  <!-- ── Career Domain ── -->
+  <section class="domain-section">
+    <div class="domain-marker">
+      <span class="domain-name">.Career</span>
     </div>
 
-  </div>
+    <!-- 01 · Fidelity Investments -->
+    <article class="project project--career">
+      <span class="project-num" aria-hidden="true">01</span>
+      <div class="project-grid project-grid--career">
+        <div class="career-logo-panel">
+          <img src="images/FidelityLogo.png" alt="Fidelity Investments" class="career-logo-large" />
+        </div>
+        <div class="project-copy">
+          <div class="project-eyebrow">
+            <span class="eyebrow-cat">Career</span>
+            <span class="eyebrow-year">
+              2023 – Present <span class="career-live"></span>
+            </span>
+          </div>
+          <h2 class="project-title">Fidelity<br>Investments</h2>
+          <div class="title-rule"></div>
+          <ul class="achievement-tags">
+            <li>Software Engineer</li>
+            <li>Financial Technology</li>
+            <li>Current Role</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 02 · Prometheus Group -->
+    <article class="project project--career project--flip">
+      <span class="project-num" aria-hidden="true">02</span>
+      <div class="project-grid project-grid--career">
+        <div class="project-copy">
+          <div class="project-eyebrow">
+            <span class="eyebrow-cat">Career</span>
+            <span class="eyebrow-year">2022</span>
+          </div>
+          <h2 class="project-title">Prometheus<br>Group</h2>
+          <div class="title-rule"></div>
+          <ul class="achievement-tags">
+            <li>Software Engineer</li>
+            <li>Full Stack Development</li>
+            <li>Agile / Scrum</li>
+            <li>Client Collaboration</li>
+          </ul>
+        </div>
+        <div class="career-logo-panel">
+          <img src="images/PrometheusLogo.png" alt="Prometheus Group" class="career-logo-large career-logo-large--stacked" />
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── Research Domain ── -->
+  <section class="domain-section">
+    <div class="domain-marker">
+      <span class="domain-name">.Research</span>
+    </div>
+
+    <!-- 03 · Augmented Reality -->
+    <article class="project">
+      <span class="project-num" aria-hidden="true">03</span>
+      <div class="project-grid">
+        <div class="project-media">
+          <div class="media-frame">
+            <app-video-player
+              src="images/ARVideo.mp4"
+              poster="images/ARThumb.jpg"
+              title="Watch Demo"
+            ></app-video-player>
+          </div>
+          <div class="lottie-accent" id="augmented"></div>
+        </div>
+        <div class="project-copy">
+          <div class="project-eyebrow">
+            <span class="eyebrow-cat">Research</span>
+            <span class="eyebrow-year">2021 - 2022</span>
+            <img src="images/ECULogo.png" alt="East Carolina University" class="career-logo career-logo--stacked" />
+          </div>
+          <h2 class="project-title">Augmented<br>Reality</h2>
+          <div class="title-rule"></div>
+          <ul class="achievement-tags">
+            <li>Multiplayer Platform</li>
+            <li>12% Code Optimization</li>
+            <li>Clean Code</li>
+            <li>Agile Environment</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <!-- 04 · Synthetic Data -->
+    <article class="project project--flip">
+      <span class="project-num" aria-hidden="true">04</span>
+      <div class="project-grid">
+        <div class="project-copy">
+          <div class="project-eyebrow">
+            <span class="eyebrow-cat">Research</span>
+            <span class="eyebrow-year">2020 - 2021</span>
+            <img src="images/ECULogo.png" alt="East Carolina University" class="career-logo career-logo--stacked" />
+          </div>
+          <h2 class="project-title">Synthetic<br>Data</h2>
+          <div class="title-rule"></div>
+          <ul class="achievement-tags">
+            <li>ML Training Data</li>
+            <li>Ivy League Presentation</li>
+            <li>High Quality Software</li>
+          </ul>
+        </div>
+        <div class="project-media">
+          <div class="media-frame">
+            <app-video-player
+              src="images/SyntheticData.mp4"
+              poster="images/SyntheticThumb.jpg"
+              title="Watch Demo"
+            ></app-video-player>
+          </div>
+          <div class="lottie-accent" id="coding"></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <!-- ── Internship Domain ── -->
+  <section class="domain-section internship-section">
+    <div class="domain-marker">
+      <span class="domain-name">.Internship</span>
+    </div>
+
+    <!-- 05 · NASA -->
+    <article class="project">
+      <span class="project-num" aria-hidden="true">05</span>
+      <div class="project-grid project-grid--nasa">
+        <div class="project-media">
+          <div class="media-frame">
+            <img
+              src="images/SpacePic.jpg"
+              alt="NASA Weather Balloon Launch"
+              class="nasa-img"
+            />
+          </div>
+          <div class="lottie-accent" id="balloon"></div>
+        </div>
+        <div class="project-copy">
+          <div class="project-eyebrow">
+            <span class="eyebrow-cat">Internship</span>
+            <span class="eyebrow-year">2018 - 2019</span>
+            <img src="images/NASALogo.png" alt="NASA" class="career-logo career-logo--stacked" />
+          </div>
+          <h2 class="project-title">NASA</h2>
+          <div class="title-rule"></div>
+          <ul class="achievement-tags">
+            <li>Python &amp; SQL</li>
+            <li>2nd Place</li>
+            <li>~92,000 ft Altitude</li>
+            <li>On Schedule</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <div class="image-trail-overlay">
+      <app-image-trail [items]="spacePicItems"></app-image-trail>
+    </div>
+  </section>
+
 </div>

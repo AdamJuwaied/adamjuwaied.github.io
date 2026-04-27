@@ -2,23 +2,206 @@
 	<!-- Zone 1: Hero — first viewport, logo centered -->
 	<section class="index-page index-page--hero">
 		<div class="index-page__logo" [style.opacity]="logoOpacity()" [style.transform]="'translate(-50%, ' + logoShift() + '%)'">
-			<img src="/images/AdamJuwaied.png" alt="Adam Juwaied" class="index-page__logo-img" />
-			<img src="/images/ADAMJSHADOW.png" class="index-page__logo-img-shadow" />
+			<h1 class="index-page__name">Adam Juwaied</h1>
 		</div>
 	</section>
 
-	<!-- Zone 2: Transition spacer — particles rise, darken, spread -->
-	<section class="index-page index-page--transition"></section>
 
-	<!-- Zone 3: Reveal — content appears inside particle-framed void -->
-	<section class="index-page index-page--reveal">
-		<div class="index-reveal" [style.opacity]="textOpacity()">
-			<p class="index-reveal__tagline">DESIGN. CODE. CRAFT.</p>
-			<h2 class="index-reveal__heading">Building digital experiences<br />that feel alive.</h2>
-			<p class="index-reveal__sub">Scroll to explore my work</p>
+	<!-- ── Content sections ── -->
+	<div class="ic-content-glass">
+
+	<!-- ── Intro: 2-column dashboard layout ── -->
+	<div class="ic">
+
+		<!-- Left column: headline + CTA -->
+		<section class="ic-intro">
+			<span class="ic-intro__eyebrow">Software Engineer — Raleigh, NC</span>
+			<h2 class="ic-intro__headline">
+				I build software<br>that actually ships.
+			</h2>
+			<p class="ic-intro__sub">
+				From aerospace data pipelines at NASA to high-stakes financial systems
+				at Fidelity — I bring full-stack precision to every layer of the stack.
+			</p>
+			<a routerLink="/work" class="ic-cta">
+				View Selected Work
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+			</a>
+		</section>
+
+		<!-- Right column: expertise list + stats -->
+		<div class="ic-aside">
+			<ul class="ic-expertise">
+				<li class="ic-exp-item">
+					<span class="ic-exp-num">01</span>
+					<span class="ic-exp-name">Full-Stack Engineering</span>
+				</li>
+				<li class="ic-exp-item">
+					<span class="ic-exp-num">02</span>
+					<span class="ic-exp-name">Data &amp; Machine Learning</span>
+				</li>
+				<li class="ic-exp-item">
+					<span class="ic-exp-num">03</span>
+					<span class="ic-exp-name">Systems Research</span>
+				</li>
+				<li class="ic-exp-item">
+					<span class="ic-exp-num">04</span>
+					<span class="ic-exp-name">UI / UX Design</span>
+				</li>
+			</ul>
+			<div class="ic-stats">
+				<div class="ic-stat">
+					<span class="ic-stat__num">3</span>
+					<span class="ic-stat__label">Projects</span>
+				</div>
+				<div class="ic-stat ic-stat--sep" aria-hidden="true">·</div>
+				<div class="ic-stat">
+					<span class="ic-stat__num">2</span>
+					<span class="ic-stat__label">Jobs</span>
+				</div>
+				<div class="ic-stat ic-stat--sep" aria-hidden="true">·</div>
+				<div class="ic-stat">
+					<span class="ic-stat__num">2</span>
+					<span class="ic-stat__label">Awards</span>
+				</div>
+				<div class="ic-stat ic-stat--sep" aria-hidden="true">·</div>
+				<div class="ic-stat">
+					<span class="ic-stat__num">92K</span>
+					<span class="ic-stat__label">ft Altitude</span>
+				</div>
+			</div>
 		</div>
-	</section>
 
-	<!-- Zone 4: Extra breathing room -->
-	<section class="index-page index-page--outro"></section>
+	</div>
+
+	<!-- ── Process section ── -->
+	<div class="ic-section ic-process-section">
+		<header class="ic-section-header ic-reveal">
+			<span class="ic-section-label">Process</span>
+			<h2 class="ic-section-title">How I work</h2>
+		</header>
+		<div class="ic-process-grid">
+			<div class="ic-process-card ic-reveal">
+				<span class="ic-process-card__bg-num">01</span>
+				<span class="ic-process-card__num">01</span>
+				<h3 class="ic-process-card__title">Research</h3>
+				<p class="ic-process-card__desc">Start by understanding the user's problem and the system constraints before writing a single line of code.</p>
+			</div>
+			<div class="ic-process-card ic-reveal">
+				<span class="ic-process-card__bg-num">02</span>
+				<span class="ic-process-card__num">02</span>
+				<h3 class="ic-process-card__title">Architect</h3>
+				<p class="ic-process-card__desc">Map data flows, define interfaces, and settle on tradeoffs before implementation begins. No snowflake systems.</p>
+			</div>
+			<div class="ic-process-card ic-reveal">
+				<span class="ic-process-card__bg-num">03</span>
+				<span class="ic-process-card__num">03</span>
+				<h3 class="ic-process-card__title">Build</h3>
+				<p class="ic-process-card__desc">Ship small, iterate fast. Clean commits, tested code, and documentation that doesn't lie about what the system does.</p>
+			</div>
+			<div class="ic-process-card ic-reveal">
+				<span class="ic-process-card__bg-num">04</span>
+				<span class="ic-process-card__num">04</span>
+				<h3 class="ic-process-card__title">Deploy</h3>
+				<p class="ic-process-card__desc">CI/CD, observability from day one, and a rollback plan before go-live. Production is where it counts.</p>
+			</div>
+		</div>
+	</div>
+
+	<!-- ── Timeline section ── -->
+	<div class="ic-section ic-timeline-section">
+		<header class="ic-section-header ic-reveal">
+			<span class="ic-section-label">Experience</span>
+			<h2 class="ic-section-title">Where I've been</h2>
+		</header>
+		<div class="ic-timeline">
+			<div class="ic-trow ic-reveal">
+				<span class="ic-trow__period">2023 — Present</span>
+				<div class="ic-trow__body">
+					<h3 class="ic-trow__role">Software Engineer</h3>
+					<span class="ic-trow__org">Fidelity Investments</span>
+					<p class="ic-trow__desc">Building high-stakes financial systems that process millions of transactions daily. Full-stack engineering across Java, Spring Boot, Angular, and cloud infrastructure.</p>
+				</div>
+			</div>
+			<div class="ic-trow ic-reveal">
+				<span class="ic-trow__period">2022</span>
+				<div class="ic-trow__body">
+					<h3 class="ic-trow__role">Full-Stack Engineer</h3>
+					<span class="ic-trow__org">Prometheus Medical</span>
+					<p class="ic-trow__desc">Developed medical device management software that streamlines hospital supply chains. Reduced manual tracking overhead by 40%.</p>
+				</div>
+			</div>
+			<div class="ic-trow ic-reveal">
+				<span class="ic-trow__period">2021 — 2022</span>
+				<div class="ic-trow__body">
+					<h3 class="ic-trow__role">Research Developer</h3>
+					<span class="ic-trow__org">ECU — Augmented Reality Lab</span>
+					<p class="ic-trow__desc">Built AR-powered educational tools that overlay molecular biology visualizations onto real-world objects. Published as a university research project.</p>
+				</div>
+			</div>
+			<div class="ic-trow ic-reveal">
+				<span class="ic-trow__period">2020 — 2021</span>
+				<div class="ic-trow__body">
+					<h3 class="ic-trow__role">Software Engineer</h3>
+					<span class="ic-trow__org">ECU — Synthetic Biology Lab</span>
+					<p class="ic-trow__desc">Engineered data pipelines for genomic sequence analysis, processing large biosynthetic datasets to aid CRISPR research workflows.</p>
+				</div>
+			</div>
+			<div class="ic-trow ic-reveal">
+				<span class="ic-trow__period">2018 — 2019</span>
+				<div class="ic-trow__body">
+					<h3 class="ic-trow__role">Software Engineering Intern</h3>
+					<span class="ic-trow__org">NASA</span>
+					<p class="ic-trow__desc">Built telemetry data pipelines for high-altitude balloon experiments reaching 92,000 ft. Processed real-time sensor streams from stratospheric payloads.</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- ── Stack section ── -->
+	<div class="ic-section ic-stack-section">
+		<header class="ic-section-header ic-reveal">
+			<span class="ic-section-label">Stack</span>
+			<h2 class="ic-section-title">Tools of the trade</h2>
+		</header>
+		<div class="ic-stack-grid ic-reveal">
+			<span class="ic-stack-item">Python</span>
+			<span class="ic-stack-item">TypeScript</span>
+			<span class="ic-stack-item">Angular</span>
+			<span class="ic-stack-item">React</span>
+			<span class="ic-stack-item">Java</span>
+			<span class="ic-stack-item">Spring Boot</span>
+			<span class="ic-stack-item">SQL</span>
+			<span class="ic-stack-item">Node.js</span>
+			<span class="ic-stack-item">TensorFlow</span>
+			<span class="ic-stack-item">AWS</span>
+			<span class="ic-stack-item">Docker</span>
+			<span class="ic-stack-item">Figma</span>
+			<span class="ic-stack-item">Git</span>
+			<span class="ic-stack-item">REST APIs</span>
+			<span class="ic-stack-item">Three.js</span>
+			<span class="ic-stack-item">WebGL</span>
+		</div>
+	</div>
+
+	<!-- ── CTA section: horizontal split ── -->
+	<div class="ic-section ic-cta-split-section">
+		<header class="ic-section-header ic-reveal">
+			<span class="ic-section-label">What's next</span>
+
+		</header>
+		<div class="ic-cta-split ic-reveal">
+			<div class="ic-cta-split__text">
+				<h2 class="ic-cta-split__title">Have a project in mind?</h2>
+				<p class="ic-cta-split__sub">Whether it's a data pipeline, a full-stack platform, or something that doesn't have a name yet — I'm interested.</p>
+			</div>
+			<a routerLink="/work" class="ic-cta ic-cta--large">
+				View My Work
+				<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+			</a>
+		</div>
+	</div>
+
+	</div><!-- /.ic-content-glass -->
+
 </div>

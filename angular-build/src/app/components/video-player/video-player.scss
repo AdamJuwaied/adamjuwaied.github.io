@@ -26,6 +26,11 @@ video {
   &.ready {
     opacity: 1;
   }
+
+  // Poster image is visible immediately — no need to wait for seek
+  &[poster] {
+    opacity: 1;
+  }
 }
 
 // When playing, let the browser controls handle aspect ratio

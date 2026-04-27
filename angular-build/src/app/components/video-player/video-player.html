@@ -7,6 +7,7 @@
     muted
     (ended)="onEnded()"
     [class.ready]="thumbnailReady"
+    [attr.poster]="poster || null"
   ></video>
 
   <!-- Big play button — disappears while playing -->

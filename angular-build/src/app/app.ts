@@ -28,6 +28,17 @@ export class App {
   protected readonly homeScrollProgress = signal(0);
   protected readonly isMobileDevice = signal(false);
 
+  protected contentBlurOpacity(): number {
+    const p = this.homeScrollProgress();
+    return Math.max(0, Math.min(1, (p - 0.40) / 0.60));
+  }
+
+  protected particleBlurPx(): number {
+    const p = this.homeScrollProgress();
+    // Ramp from 0px at hero to 6px at content — soften particles, not erase them
+    return Math.max(0, Math.min(6, (p - 0.30) * 10));
+  }
+
   private readonly isBrowser: boolean;
 
   constructor(@Inject(PLATFORM_ID) platformId: Object, private router: Router) {

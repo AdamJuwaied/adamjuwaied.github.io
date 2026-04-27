@@ -20,6 +20,7 @@ import { isPlatformBrowser, CommonModule } from '@angular/common';
 export class VideoPlayer implements AfterViewInit, OnDestroy {
   @Input({ required: true }) src!: string;
   @Input() title = 'Video';
+  @Input() poster?: string;
 
   @ViewChild('videoEl') videoRef!: ElementRef<HTMLVideoElement>;
   @ViewChild('wrapper') wrapperRef!: ElementRef<HTMLDivElement>;

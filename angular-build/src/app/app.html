@@ -27,29 +27,31 @@ class="app-shell__background-glyph"
 @if (isHomePage() && !isMobileDevice()) {
 <app-light-rays
 raysOrigin="top-right"
-raysColor="#d4923e"
-[raysSpeed]="1"
-[lightSpread]="0.9"
-[rayLength]="1.0"
+raysColor="#f0a030"
+[raysSpeed]="0.8"
+[lightSpread]="2.2"
+[rayLength]="1.8"
 [pulsating]="false"
-[fadeDistance]="0.55"
+[fadeDistance]="0.9"
 [saturation]="1"
 [followMouse]="false"
-[mouseInfluence]="0.18"
-[noiseAmount]="0.40"
+[mouseInfluence]="0"
+[noiseAmount]="0.20"
 [distortion]="0"
 [style.opacity]="1 - homeScrollProgress() * 3"
 ></app-light-rays>
 }
 
+<div class="app-shell__content">
 @if (isHomePage() || isContactPage()) {
   @defer (on idle) {
-    <app-dust-particles-gl [lockTouch]="false" [scrollProgress]="homeScrollProgress()"></app-dust-particles-gl>
+    <app-dust-particles-gl
+      [lockTouch]="false"
+      [scrollProgress]="homeScrollProgress()"
+    ></app-dust-particles-gl>
   } @placeholder {
   }
 }
-
-<div class="app-shell__content">
 <app-header></app-header>
 <router-outlet></router-outlet>
 </div>

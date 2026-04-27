@@ -264,7 +264,7 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       display: block;
       position: fixed;
       inset: 0;
-      z-index: 2;
+      z-index: -1;
       pointer-events: none;
       /* Force GPU compositing layer — prevents iOS fixed-position jank during scroll */
       -webkit-transform: translateZ(0);
@@ -286,17 +286,13 @@ const VIGNETTE_FRAGMENT = /* glsl */ `
       height: 100%;
       display: block;
       pointer-events: none;
-      mix-blend-mode: screen;
+      mix-blend-mode: normal;
       z-index: auto;
     }
     /* Mobile: hide WebGL vignette canvas, use CSS vignette instead */
-    /* Mobile: normal blend — screen mode forces iOS Safari to use software compositing */
     @media (max-width: 1023px) and (hover: none) {
       .vig-gl {
         display: none !important;
-      }
-      .dust-gl {
-        mix-blend-mode: normal;
       }
     }
   `],
@@ -1329,8 +1325,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       const targetX = homeX + centerOff * w * spreadH * gField;
 
       // During scroll, strong pull toward spread formation + scroll velocity push
-      if (isScrolling && gField > 0.005) {
-        // Snap to spread formation — strong on both platforms
+      if (isScrolling && gField > 0.005 && gField < 0.98) {
+        // Snap to spread formation — only during the expansion phase
         const snapStr = isMobile ? 0.80 : 0.45;
         px += (targetX - px) * snapStr;
         py += (targetY - py) * snapStr;
@@ -1339,9 +1335,8 @@ export class DustParticlesGL implements OnInit, OnDestroy {
         this.pVY[i] *= 0.3;
       }
 
-      // Scroll velocity displacement — parallax push per layer
-      // Near particles move more, far particles move less (depth parallax)
-      if (absScrollVel > 0.5) {
+      // Scroll velocity displacement — only during expansion phase, not after
+      if (absScrollVel > 0.5 && gField < 0.95) {
         const parallaxMul = layer === LAYER_NEAR ? 1.8 : layer === LAYER_MID ? 1.0 : 0.4;
         const pushForce = scrollVel * parallaxMul * 0.15;
         this.pVY[i] += pushForce;
@@ -1404,7 +1399,7 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       // Damping — tuned for scroll responsiveness without jiggle
       let damp = layer === LAYER_NEAR ? 0.92 : layer === LAYER_MID ? 0.90 : 0.86;
       // During scroll, allow scroll velocity force to carry through
-      if (isScrolling) {
+      if (isScrolling && gField < 0.98) {
         damp = layer === LAYER_NEAR ? 0.88 : layer === LAYER_MID ? 0.85 : 0.80;
       } else if (!fluidActive) {
         // When idle, heavy damping to prevent spring overshoot
