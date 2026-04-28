@@ -1383,9 +1383,12 @@ export class DustParticlesGL implements OnInit, OnDestroy {
       vx += (this.pBaseX[i] - px) * returnK * (1 - gField);
       vy += (this.pBaseY[i] - py) * returnK * (1 - gField);
 
-      // Scroll spread: maintain formation via spring when scrolled
+      // Scroll spread: maintain formation via spring when scrolled.
+      // When fluid is active (cursor moving), relax hold spring to match
+      // hero-state spring strength so particles visibly respond to the cursor.
+      // When idle, stiff spring snaps particles back to formation.
       if (gField > 0.03) {
-        const holdK = 0.06 * gField;
+        const holdK = (fluidActive ? 0.008 : 0.06) * gField;
         vx += (targetX - px) * holdK;
         vy += (targetY - py) * holdK;
       }
